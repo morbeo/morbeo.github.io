@@ -118,7 +118,7 @@
 <div class="wrap">
   <header>
     <h1>PS5 Controller Debugger</h1>
-    <div class="status"><div class="dot" id="statusDot"></div><span id="statusText">No controller detected</span></div>
+    <div class="status"><div class="dot" id="statusDot"></div><span id="statusText">No controller detected &mdash; press a button on it</span></div>
   </header>
 
   <div class="hint">Connect a DualSense via USB or Bluetooth, then press any button. Drag the dot on each stick's inner ring to calibrate its deadzone.</div>
@@ -723,23 +723,39 @@ document.getElementById('speakerBtn').addEventListener('click', async () => {
   }
 });
 
-window.addEventListener('gamepadconnected', (e) => {
-  gamepadIndex = e.gamepad.index;
+// Browsers hide gamepads from a page until the controller sends its first input while the tab is
+// focused, and the connect event can be missed (e.g. controller already attached, page reloaded).
+// So detection is event-driven AND polled: both paths funnel into connectPad().
+const NO_PAD_TEXT = 'No controller detected \u2014 press a button on it';
+function connectPad(gp) {
+  if (gamepadIndex === gp.index && rafId) return;
+  gamepadIndex = gp.index;
   document.getElementById('statusDot').classList.add('connected');
-  document.getElementById('statusText').textContent = 'Connected: ' + e.gamepad.id;
-  document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = !e.gamepad.vibrationActuator);
+  document.getElementById('statusText').textContent = 'Connected: ' + gp.id;
+  document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = !gp.vibrationActuator);
   if (!rafId) loop();
-});
-window.addEventListener('gamepaddisconnected', (e) => {
-  if (e.gamepad.index === gamepadIndex) {
-    gamepadIndex = null;
-    document.getElementById('statusDot').classList.remove('connected');
-    document.getElementById('statusText').textContent = 'No controller detected';
-    ['infoId','infoIndex','infoMapping','infoCounts','infoVibration'].forEach(id => { document.getElementById(id).textContent = '\u2014'; });
-    document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = true);
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+}
+function disconnectPad() {
+  gamepadIndex = null;
+  document.getElementById('statusDot').classList.remove('connected');
+  document.getElementById('statusText').textContent = NO_PAD_TEXT;
+  ['infoId','infoIndex','infoMapping','infoCounts','infoVibration'].forEach(id => { document.getElementById(id).textContent = '\u2014'; });
+  document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = true);
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+}
+window.addEventListener('gamepadconnected', (e) => connectPad(e.gamepad));
+window.addEventListener('gamepaddisconnected', (e) => { if (e.gamepad.index === gamepadIndex) disconnectPad(); });
+setInterval(() => {
+  if (gamepadIndex === null) {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const p of pads) { if (p && p.connected) { connectPad(p); break; } }
+  } else {
+    // controller vanished without a disconnect event (some USB drivers do this)
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = pads[gamepadIndex];
+    if (!gp || !gp.connected) disconnectPad();
   }
-});
+}, 500);
 
 const CHANGE_EPS = 0.05;
 function updateMeta(meta, val, now) {
@@ -817,16 +833,7 @@ function loop() {
 
 (function checkExisting() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  for (const p of pads) {
-    if (p) {
-      gamepadIndex = p.index;
-      document.getElementById('statusDot').classList.add('connected');
-      document.getElementById('statusText').textContent = 'Connected: ' + p.id;
-      document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = !p.vibrationActuator);
-      loop();
-      break;
-    }
-  }
+  for (const p of pads) { if (p && p.connected) { connectPad(p); break; } }
 })();
 </script>
 </body>
