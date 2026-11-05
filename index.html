@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>morbeo</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f6f8; --panel: #ffffff; --border: #e1e4e8; --text: #1a1a1a;
+    --text-muted: #6b7280; --accent: #0066cc;
+    --live-bg: #e7f6ec; --live-fg: #15803d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 16px 40px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .sub { color: var(--text-muted); font-size: 13px; margin: 0 0 8px; }
+  h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); margin: 26px 0 10px; font-weight: 700;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; }
+  .card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 15px;
+  }
+  a.card:hover, a.card:focus-visible { border-color: var(--accent); outline: none; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .card-name { font-size: 15px; font-weight: 600; }
+  a.card .card-name { color: var(--accent); }
+  .tag {
+    flex-shrink: 0; font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+    padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
+  }
+  .tag.live { background: var(--live-bg); color: var(--live-fg); }
+  .card-desc { margin: 5px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.45; }
+  .pills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+  .pill {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  }
+  .pill small { color: var(--text-muted); font-size: 10.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>morbeo</h1>
+  <p class="sub">Games, remakes and small tools. Everything runs in your browser.</p>
+
+  <h2>Live</h2>
+  <div class="grid">
+    <a class="card" href="stick2/">
+      <div class="card-head"><span class="card-name">stick2</span><span class="tag live">Live</span></div>
+      <p class="card-desc">Procedural stick-figure fight engine with a character designer, animation and sound editors, fight recording and replay, MCP support and multiplayer (needs more testing).</p>
+    </a>
+    <a class="card" href="viktorani/">
+      <div class="card-head"><span class="card-name">viktorani</span><span class="tag live">Live</span></div>
+      <p class="card-desc">Bar trivia PWA with WebRTC multiplayer and buzzers. No backend: runs entirely in the browser, offline, with QR code support.</p>
+    </a>
+    <a class="card" href="remakes/">
+      <div class="card-head"><span class="card-name">remakes</span><span class="tag live">Live</span></div>
+      <p class="card-desc">Browser remakes of classic games.</p>
+      <div class="pills">
+        <span class="pill">Spring Rider <small>Elasto Mania</small></span>
+        <span class="pill">Clockwerx</span>
+        <span class="pill">Heatline MX <small>Excitebike</small></span>
+        <span class="pill">Polar Delve <small>Arctic Adventure</small></span>
+        <span class="pill">Virtua Justice <small>Virtua Cop</small></span>
+      </div>
+    </a>
+    <a class="card" href="kocmoc/">
+      <div class="card-head"><span class="card-name">kocmoc</span><span class="tag live">Live</span></div>
+      <p class="card-desc">Cel-shaded space sim and racer with 6DOF flight, procedural obstacle courses, twelve alien race tracks, replays and gamepad support.</p>
+    </a>
+    <a class="card" href="tools/">
+      <div class="card-head"><span class="card-name">tools</span><span class="tag live">Live</span></div>
+      <p class="card-desc">Small browser utilities, starting with a PS5 controller debugger: sticks, triggers, rumble, touchpad, mic and a fighting-game move detector.</p>
+    </a>
+  </div>
+</div>
+</body>
+</html>
