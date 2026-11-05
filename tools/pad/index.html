@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PS5 Controller Debugger</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --border: #e1e4e8; --text: #1a1a1a; --text-muted: #6b7280;
+    --accent: #0066cc; --accent-light: #e6f0ff; --active: #d97706; --active-bg: #fff3e0;
+    --ok: #16a34a; --err: #dc2626; --mono: 'SF Mono', 'Consolas', 'Menlo', monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 16px; font-size: 13px; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; }
+  h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  .status { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 16px; background: var(--panel); border: 1px solid var(--border); font-size: 12px; font-weight: 500; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--err); flex-shrink: 0; }
+  .dot.connected { background: var(--ok); }
+  .hint { font-size: 11.5px; color: var(--text-muted); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .wide { grid-column: 1 / -1; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 8px 0; font-weight: 600; }
+  .panel h2.mt { margin-top: 12px; }
+  .group-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 700; padding: 6px 0 2px; }
+  .group-label:first-child { padding-top: 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  @media (max-width: 480px) { .two-col { grid-template-columns: 1fr; } }
+
+  .pad-face { display: flex; justify-content: center; align-items: center; gap: 24px; padding: 4px 0 10px; }
+  .btn-cluster { position: relative; width: 84px; height: 84px; }
+  .face-btn { position: absolute; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: var(--panel); color: var(--text-muted); }
+  .btn-triangle { top: 0; left: 28px; } .btn-circle { top: 28px; left: 56px; } .btn-cross { top: 56px; left: 28px; } .btn-square { top: 28px; left: 0; }
+  .dpad-cluster { position: relative; width: 84px; height: 84px; }
+  .dpad-btn { position: absolute; width: 28px; height: 28px; border: 2px solid var(--border); background: var(--panel); color: var(--text-muted); display: flex; align-items: center; justify-content: center; font-size: 11px; }
+  .dpad-up { top: 0; left: 28px; border-radius: 5px 5px 0 0; } .dpad-right { top: 28px; left: 56px; border-radius: 0 5px 5px 0; }
+  .dpad-down { top: 56px; left: 28px; border-radius: 0 0 5px 5px; } .dpad-left { top: 28px; left: 0; border-radius: 5px 0 0 5px; }
+  .dpad-center { top: 28px; left: 28px; border: none; background: transparent; }
+  .system-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+  .misc-btn { padding: 4px 10px; border: 2px solid var(--border); border-radius: 16px; font-size: 10px; font-weight: 600; color: var(--text-muted); background: var(--panel); }
+
+  .info-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11.5px; }
+  .info-row span:first-child { color: var(--text-muted); }
+  .rumble-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .rumble-grid-wide { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
+  @media (max-width: 620px) { .rumble-grid-wide { grid-template-columns: repeat(2, 1fr); } }
+  .rumble-btn { padding: 8px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--accent-light); color: var(--accent); font-weight: 600; cursor: pointer; font-size: 11px; }
+  .rumble-btn.on { background: var(--active); color: #fff; border-color: var(--active); }
+  .rumble-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+
+  .shoulders { display: flex; justify-content: space-between; gap: 12px; }
+  .shoulder-pair { flex: 1; display: flex; align-items: flex-start; gap: 8px; }
+  .shoulder-btn { flex-shrink: 0; width: 34px; height: 26px; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border); border-radius: 5px; font-size: 10px; font-weight: 700; color: var(--text-muted); background: var(--panel); }
+  .trigger-col { flex: 1; }
+  .trigger-bar { height: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .trigger-fill { height: 100%; width: 0%; background: var(--accent); }
+  .trigger-val { font-size: 9.5px; color: var(--text-muted); margin-top: 3px; font-family: var(--mono); }
+  .trigger-range { font-size: 9px; color: var(--text-muted); font-family: var(--mono); margin-top: 1px; }
+  .trigger-range.warn { color: var(--err); }
+  .reset-cal { font-size: 9.5px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
+
+  .sticks-row { display: flex; justify-content: center; gap: 20px; padding: 4px 0; flex-wrap: wrap; }
+  .stick-box { text-align: center; width: 130px; flex-shrink: 0; }
+  .stick-label-row { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 10px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+  .stick-label-row .dz-val { font-family: var(--mono); font-weight: 500; color: #9aa1ab; font-size: 9px; }
+  .l3-indicator { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); background: var(--panel); flex-shrink: 0; }
+  .stick-svg-wrap { position: relative; width: 120px; height: 120px; margin: 0 auto; }
+  .stick-svg-wrap svg { overflow: visible; }
+  .dz-handle { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); cursor: ns-resize; touch-action: none; left: 60px; margin-left: -6px; z-index: 5; }
+  .stick-err { font-size: 9.5px; font-family: var(--mono); color: var(--text-muted); margin-top: 2px; }
+  .stick-coords { font-size: 10px; color: var(--text-muted); font-family: var(--mono); margin-top: 3px; font-variant-numeric: tabular-nums; white-space: pre; }
+
+  .numpad { display: grid; grid-template-columns: repeat(3, 24px); grid-template-rows: repeat(3, 24px); gap: 2px; margin: 4px auto 0; width: fit-content; }
+  .numpad .cell { border: 1.5px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #c7ccd3; background: var(--bg); }
+  .numpad .cell.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .numpad-block { text-align: center; }
+  .numpad-label { font-size: 9.5px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.03em; }
+  .move-detector-row { display: flex; gap: 18px; align-items: flex-start; justify-content: center; flex-wrap: wrap; padding: 4px 0; }
+  .move-log { flex: 1; min-width: 200px; max-width: 360px; min-height: 110px; }
+  .move-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-radius: 6px; background: var(--bg); font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .move-row.flash { background: var(--active-bg); color: var(--active); }
+  .move-row .side-tag { font-size: 9px; font-weight: 700; color: #fff; background: #9aa1ab; border-radius: 4px; padding: 1px 5px; margin-right: 6px; }
+  .move-row.side-L .side-tag { background: var(--accent); }
+  .move-row.side-R .side-tag { background: #7c3aed; }
+  .move-row .seq { font-family: var(--mono); font-size: 10px; color: var(--text-muted); font-weight: 500; }
+  .move-empty { font-size: 11px; color: var(--text-muted); text-align: center; padding: 20px 0; }
+
+  .tl-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  @media (max-width: 720px) { .tl-cols { grid-template-columns: 1fr; } }
+  .tl-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .tl-name { width: 52px; flex-shrink: 0; font-size: 10px; color: var(--text-muted); font-weight: 600; }
+  .tl-canvas { flex: 1; display: block; border-radius: 3px; background: var(--bg); }
+  .tl-val { width: 36px; flex-shrink: 0; text-align: right; font-size: 10px; font-family: var(--mono); color: var(--text-muted); }
+  .tl-delta { width: 44px; flex-shrink: 0; text-align: right; font-size: 9px; font-family: var(--mono); color: #9aa1ab; }
+
+  .footer-note { font-size: 11px; color: var(--text-muted); margin-top: 14px; text-align: center; }
+
+  .avpanel-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .avpanel-cols { grid-template-columns: 1fr; } }
+  .av-sub { text-align: center; }
+  .av-sub h3 { font-size: 10px; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin: 0 0 6px; }
+  .tp-rect { position: relative; width: 140px; height: 90px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin: 0 auto; }
+  .tp-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); top: 50%; left: 50%; margin: -5px; }
+  .tp-dot2 { background: #7c3aed; }
+  .av-note { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 6px; line-height: 1.4; }
+  .av-select { width: 100%; font-size: 11px; padding: 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); margin-bottom: 6px; }
+  .meter-bar { height: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; margin-top: 6px; }
+  .meter-fill { height: 100%; width: 0%; background: var(--ok); }
+  .av-btn { width: 100%; padding: 7px; border-radius: 6px; border: 1px solid var(--border); background: var(--accent-light); color: var(--accent); font-weight: 600; cursor: pointer; font-size: 11px; margin-top: 6px; }
+  .av-btn.on { background: var(--active); color: #fff; border-color: var(--active); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>PS5 Controller Debugger</h1>
+    <div class="status"><div class="dot" id="statusDot"></div><span id="statusText">No controller detected</span></div>
+  </header>
+
+  <div class="hint">Connect a DualSense via USB or Bluetooth, then press any button. Drag the dot on each stick's inner ring to calibrate its deadzone.</div>
+
+  <div class="grid">
+
+    <div class="panel">
+      <h2>Face Buttons, D-Pad &amp; Info</h2>
+      <div class="pad-face">
+        <div class="dpad-cluster">
+          <div class="dpad-btn dpad-up" data-btn="12">&#9650;</div>
+          <div class="dpad-btn dpad-right" data-btn="15">&#9654;</div>
+          <div class="dpad-btn dpad-down" data-btn="13">&#9660;</div>
+          <div class="dpad-btn dpad-left" data-btn="14">&#9664;</div>
+          <div class="dpad-center"></div>
+        </div>
+        <div class="btn-cluster">
+          <div class="face-btn btn-triangle" data-btn="3">&#9651;</div>
+          <div class="face-btn btn-circle" data-btn="1">&#9711;</div>
+          <div class="face-btn btn-cross" data-btn="0">&#10005;</div>
+          <div class="face-btn btn-square" data-btn="2">&#9633;</div>
+        </div>
+      </div>
+      <div class="system-row">
+        <div class="misc-btn" data-btn="8">Share</div>
+        <div class="misc-btn" data-btn="9">Options</div>
+        <div class="misc-btn" data-btn="16">PS</div>
+        <div class="misc-btn" data-btn="17">Touchpad</div>
+      </div>
+
+      <h2 class="mt">Controller Info</h2>
+      <div class="info-row"><span>ID string</span><span class="mono" id="infoId">&mdash;</span></div>
+      <div class="info-row"><span>Index</span><span class="mono" id="infoIndex">&mdash;</span></div>
+      <div class="info-row"><span>Mapping</span><span class="mono" id="infoMapping">&mdash;</span></div>
+      <div class="info-row"><span>Buttons / Axes</span><span class="mono" id="infoCounts">&mdash;</span></div>
+      <div class="info-row"><span>Vibration</span><span class="mono" id="infoVibration">&mdash;</span></div>
+    </div>
+
+    <div class="panel">
+      <h2>Shoulders, Triggers &amp; Sticks</h2>
+      <div class="shoulders">
+        <div class="shoulder-pair">
+          <div class="shoulder-btn" data-btn="4">L1</div>
+          <div class="trigger-col">
+            <div class="trigger-bar"><div class="trigger-fill" id="fillL2"></div></div>
+            <div class="trigger-val" id="valL2">L2 &middot; 0.00</div>
+            <div class="trigger-range" id="rangeL2">range 0.00&ndash;0.00</div>
+          </div>
+        </div>
+        <div class="shoulder-pair">
+          <div class="trigger-col">
+            <div class="trigger-bar"><div class="trigger-fill" id="fillR2"></div></div>
+            <div class="trigger-val" id="valR2" style="text-align:right;">R2 &middot; 0.00</div>
+            <div class="trigger-range" id="rangeR2" style="text-align:right;">range 0.00&ndash;0.00</div>
+          </div>
+          <div class="shoulder-btn" data-btn="5">R1</div>
+        </div>
+      </div>
+      <button class="reset-cal" id="resetCal">reset trigger calibration</button>
+
+      <h2 class="mt">Sticks &middot; ring = ideal r=1</h2>
+      <div class="sticks-row">
+        <div class="stick-box">
+          <div class="stick-label-row"><span>LEFT</span><span class="dz-val" id="dzValL">dz .15</span><span class="l3-indicator" data-btn="10"></span></div>
+          <div class="stick-svg-wrap" id="wrapL">
+            <svg id="stickSvgL" width="120" height="120" viewBox="0 0 120 120"></svg>
+            <div class="dz-handle" id="handleL"></div>
+          </div>
+          <div class="stick-coords" id="coordsL">x: 0.00 y: 0.00</div>
+          <div class="stick-err" id="errL">&mdash;</div>
+          <button class="reset-cal" id="resetTraceL">reset trace</button>
+        </div>
+        <div class="stick-box">
+          <div class="stick-label-row"><span class="l3-indicator" data-btn="11"></span><span class="dz-val" id="dzValR">dz .15</span><span>RIGHT</span></div>
+          <div class="stick-svg-wrap" id="wrapR">
+            <svg id="stickSvgR" width="120" height="120" viewBox="0 0 120 120"></svg>
+            <div class="dz-handle" id="handleR"></div>
+          </div>
+          <div class="stick-coords" id="coordsR">x: 0.00 y: 0.00</div>
+          <div class="stick-err" id="errR">&mdash;</div>
+          <button class="reset-cal" id="resetTraceR">reset trace</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel wide">
+      <h2>Rumble</h2>
+      <div class="rumble-grid rumble-grid-wide">
+        <button class="rumble-btn" id="rumbleLeft" data-motor="strong" disabled>Left Motor</button>
+        <button class="rumble-btn" id="rumbleRight" data-motor="weak" disabled>Right Motor</button>
+        <button class="rumble-btn" id="rumbleStop" disabled>Stop All</button>
+        <button class="rumble-btn" id="rumbleLight" disabled>Both &middot; Light</button>
+        <button class="rumble-btn" id="rumbleFull" disabled>Both &middot; Full</button>
+        <button class="rumble-btn" id="rumbleTriple" disabled>Triple Pulse</button>
+        <button class="rumble-btn" id="rumbleLong" disabled>Long (2s)</button>
+        <button class="rumble-btn" id="rumbleRamp" disabled>Ramp Up</button>
+        <button class="rumble-btn" id="rumbleHeartbeat" disabled>Heartbeat</button>
+      </div>
+    </div>
+
+    <div class="panel wide">
+      <h2>Move Detector &middot; both sticks / d-pad, any rotation</h2>
+      <div class="move-detector-row">
+        <div class="numpad-block">
+          <div class="numpad-label">LEFT</div>
+          <div class="numpad" id="numpadL"></div>
+        </div>
+        <div class="move-log" id="moveLog"><div class="move-empty">QCF/QCB, dragon punch, half circles and 360&deg;/720&deg; are detected starting from any direction, on either stick.</div></div>
+        <div class="numpad-block">
+          <div class="numpad-label">RIGHT</div>
+          <div class="numpad" id="numpadR"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel wide">
+      <h2>Touchpad Position, Mic &amp; Speaker</h2>
+      <div class="avpanel-cols">
+        <div class="av-sub">
+          <h3>Touchpad Position</h3>
+          <div class="tp-rect" id="tpRect">
+            <div class="tp-dot" id="tpDot1" style="display:none;"></div>
+            <div class="tp-dot tp-dot2" id="tpDot2" style="display:none;"></div>
+          </div>
+          <div class="av-note" id="tpNote">Click state only (see System row) until touched.</div>
+        </div>
+        <div class="av-sub">
+          <h3>Microphone</h3>
+          <select class="av-select" id="micSelect"><option value="">Default</option></select>
+          <button class="av-btn" id="micBtn">Enable Mic Test</button>
+          <div class="meter-bar"><div class="meter-fill" id="micMeter"></div></div>
+          <div class="av-note" id="micNote">Grant mic permission, then speak into the controller.</div>
+        </div>
+        <div class="av-sub">
+          <h3>Speaker / Headset</h3>
+          <select class="av-select" id="speakerSelect"><option value="">Default</option></select>
+          <button class="av-btn" id="speakerBtn">Play Test Tone</button>
+          <div class="av-note" id="speakerNote">Plays a 440Hz tone, routed to the selected output if your browser allows it.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel wide">
+      <h2>Raw Value Timelines &middot; 3s window</h2>
+      <div class="tl-cols"><div id="tlLeftCol"></div><div id="tlRightCol"></div></div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">Runs entirely in your browser via the Gamepad API &mdash; nothing is sent anywhere.</div>
+</div>
+
+<script>
+let gamepadIndex = null;
+let rafId = null;
+const WINDOW_MS = 3000;
+
+const buttonMeta = {};
+const axisMeta = {};
+function makeMeta(name) { return { name, points: [], lastVal: 0, lastChangeTs: 0, lastDelta: null, minSeen: 1, maxSeen: 0 }; }
+[[0,'Cross'],[1,'Circle'],[2,'Square'],[3,'Triangle'],[4,'L1'],[5,'R1'],[6,'L2'],[7,'R2'],
+ [8,'Share'],[9,'Options'],[10,'L3'],[11,'R3'],[12,'D-Up'],[13,'D-Down'],[14,'D-Left'],
+ [15,'D-Right'],[16,'PS'],[17,'Touch']].forEach(([i,n]) => buttonMeta[i] = makeMeta(n));
+[[0,'Left X'],[1,'Left Y'],[2,'Right X'],[3,'Right Y']].forEach(([i,n]) => axisMeta[i] = makeMeta(n));
+
+const BTN_GROUPS = [ { title: 'Face', items: [0,1,2,3] }, { title: 'D-Pad', items: [12,13,14,15] }, { title: 'Shoulders', items: [4,5] }, { title: 'Triggers', items: [6,7] } ];
+const RIGHT_GROUPS_BTN = [ { title: 'System', items: [8,9,16,17] }, { title: 'Stick Clicks', items: [10,11] } ];
+const AXIS_GROUPS = [ { title: 'Left Stick', items: [0,1] }, { title: 'Right Stick', items: [2,3] } ];
+
+function buildRow(container, kind, idx, name) {
+  const row = document.createElement('div');
+  row.className = 'tl-row';
+  row.innerHTML = `<div class="tl-name">${name}</div><canvas class="tl-canvas" id="tlc-${kind}-${idx}" width="200" height="16"></canvas><div class="tl-val" id="tlv-${kind}-${idx}">0.00</div><div class="tl-delta" id="tld-${kind}-${idx}">&ndash;</div>`;
+  container.appendChild(row);
+}
+function buildGroup(container, title, items, kind, metaMap) {
+  const label = document.createElement('div'); label.className = 'group-label'; label.textContent = title; container.appendChild(label);
+  items.forEach(idx => buildRow(container, kind, idx, metaMap[idx].name));
+}
+const leftCol = document.getElementById('tlLeftCol'), rightCol = document.getElementById('tlRightCol');
+BTN_GROUPS.forEach(g => buildGroup(leftCol, g.title, g.items, 'btn', buttonMeta));
+RIGHT_GROUPS_BTN.forEach(g => buildGroup(rightCol, g.title, g.items, 'btn', buttonMeta));
+AXIS_GROUPS.forEach(g => buildGroup(rightCol, g.title, g.items, 'axis', axisMeta));
+
+function drawTimeline(canvasId, points, min, max, now) {
+  const canvas = document.getElementById(canvasId); if (!canvas) return;
+  const ctx = canvas.getContext('2d'); const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = '#e9ebee'; ctx.lineWidth = 1;
+  for (let g = 1000; g < WINDOW_MS; g += 1000) { const x = w - (g / WINDOW_MS) * w; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  ctx.strokeStyle = '#dfe2e6'; ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(w, h / 2); ctx.stroke();
+  ctx.strokeStyle = '#0066cc'; ctx.lineWidth = 1.3; ctx.beginPath();
+  let first = true;
+  points.forEach(p => {
+    const age = now - p.t; if (age > WINDOW_MS) return;
+    const x = w - (age / WINDOW_MS) * w; const norm = (p.v - min) / (max - min); const y = h - norm * (h - 2) - 1;
+    if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  if (points.length) {
+    const lastV = points[points.length - 1].v; const norm = (lastV - min) / (max - min); const y = h - norm * (h - 2) - 1;
+    ctx.fillStyle = '#0066cc'; ctx.beginPath(); ctx.arc(w - 1, y, 1.6, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function mixColor(c1, c2, t) { return c1.map((v, i) => Math.round(v + (c2[i] - v) * t)); }
+const NEUTRAL_BG = [255,255,255], NEUTRAL_BORDER = [225,228,232], NEUTRAL_TEXT = [107,114,128];
+const ACTIVE_BG = [255,243,224], ACTIVE_BORDER = [217,119,6], ACTIVE_TEXT = [217,119,6];
+function applyPressure(el, t) {
+  t = Math.max(0, Math.min(1, t));
+  const bg = mixColor(NEUTRAL_BG, ACTIVE_BG, t), bd = mixColor(NEUTRAL_BORDER, ACTIVE_BORDER, t), tx = mixColor(NEUTRAL_TEXT, ACTIVE_TEXT, t);
+  el.style.backgroundColor = `rgb(${bg[0]},${bg[1]},${bg[2]})`; el.style.borderColor = `rgb(${bd[0]},${bd[1]},${bd[2]})`; el.style.color = `rgb(${tx[0]},${tx[1]},${tx[2]})`;
+}
+
+// ---- Deadzone calibration (draggable), shared radius with the stick widgets ----
+const deadzone = { L: 0.15, R: 0.15 };
+const PAD_RADIUS = 48;
+function applyDeadzoneVisual(side) {
+  const val = deadzone[side];
+  document.getElementById('handle' + side).style.top = (60 - val * PAD_RADIUS) + 'px';
+  document.getElementById('dzVal' + side).textContent = 'dz ' + val.toFixed(2);
+}
+function setupDeadzoneDrag(side) {
+  const wrap = document.getElementById('wrap' + side), handle = document.getElementById('handle' + side);
+  let dragging = false;
+  handle.addEventListener('pointerdown', e => { dragging = true; handle.setPointerCapture(e.pointerId); e.preventDefault(); });
+  handle.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const rect = wrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const val = Math.max(0.03, Math.min(0.5, dist / (rect.width / 2)));
+    deadzone[side] = val; applyDeadzoneVisual(side);
+  });
+  handle.addEventListener('pointerup', () => { dragging = false; });
+  handle.addEventListener('pointercancel', () => { dragging = false; });
+}
+['L', 'R'].forEach(s => { applyDeadzoneVisual(s); setupDeadzoneDrag(s); });
+
+// ---- Combined stick widget: r=1 reference ring + farthest-point outline + live position ----
+const CIRC_SEGMENTS = 32, CIRC_COVERAGE_MIN = 0.6;
+let circBuckets = { L: new Array(CIRC_SEGMENTS).fill(0), R: new Array(CIRC_SEGMENTS).fill(0) };
+document.getElementById('resetTraceL').addEventListener('click', () => circBuckets.L = new Array(CIRC_SEGMENTS).fill(0));
+document.getElementById('resetTraceR').addEventListener('click', () => circBuckets.R = new Array(CIRC_SEGMENTS).fill(0));
+
+function recordTrace(side, x, y) {
+  const mag = Math.hypot(x, y);
+  if (mag < deadzone[side]) return;
+  let angle = Math.atan2(y, x); if (angle < 0) angle += Math.PI * 2;
+  const idx = Math.floor(angle / (Math.PI * 2 / CIRC_SEGMENTS)) % CIRC_SEGMENTS;
+  circBuckets[side][idx] = Math.max(circBuckets[side][idx], mag);
+}
+const SOFT_BLUE = [96,165,250], SOFT_RED = [248,113,113], COLLECT_BLUE = [191,214,250];
+function drawStick(side, svgId, errId, x, y) {
+  const svg = document.getElementById(svgId);
+  const buckets = circBuckets[side];
+  const cx = 60, cy = 60, rMax = PAD_RADIUS;
+  const step = (Math.PI * 2) / CIRC_SEGMENTS;
+  const withData = buckets.map((v, i) => ({ v, i })).filter(o => o.v > 0);
+  const coverage = withData.length / CIRC_SEGMENTS;
+  const ready = coverage >= CIRC_COVERAGE_MIN;
+
+  function pointFor(i) {
+    const v = buckets[i]; if (v <= 0) return null;
+    const a = (i + 0.5) * step;
+    const r = Math.min(v, 1.3) * rMax;
+    return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a), v };
+  }
+
+  let content = `<circle cx="${cx}" cy="${cy}" r="${rMax}" fill="none" stroke="#c7d4e6" stroke-width="1.2"/>`;
+  content += `<line x1="${cx-rMax}" y1="${cy}" x2="${cx+rMax}" y2="${cy}" stroke="#edf0f3" stroke-width="1"/><line x1="${cx}" y1="${cy-rMax}" x2="${cx}" y2="${cy+rMax}" stroke="#edf0f3" stroke-width="1"/>`;
+
+  let segs = '';
+  for (let i = 0; i < CIRC_SEGMENTS; i++) {
+    const p0 = pointFor(i), p1 = pointFor((i + 1) % CIRC_SEGMENTS);
+    if (p0 && p1) segs += `<line x1="${p0.x.toFixed(1)}" y1="${p0.y.toFixed(1)}" x2="${p1.x.toFixed(1)}" y2="${p1.y.toFixed(1)}" stroke="#9aa8bb" stroke-width="1"/>`;
+  }
+  content += segs;
+
+  let dots = '';
+  for (let i = 0; i < CIRC_SEGMENTS; i++) {
+    const p = pointFor(i); if (!p) continue;
+    let color;
+    if (ready) { const diff = p.v - 1.0; const t = Math.max(0, Math.min(1, (diff + 0.3) / 0.6)); const c = mixColor(SOFT_BLUE, SOFT_RED, t); color = `rgb(${c[0]},${c[1]},${c[2]})`; }
+    else color = `rgb(${COLLECT_BLUE.join(',')})`;
+    dots += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${color}" stroke="#fff" stroke-width="0.8"/>`;
+  }
+  content += dots;
+
+  const liveMag = Math.hypot(x, y);
+  if (liveMag > 0.01) {
+    const scale = liveMag > 1.3 ? 1.3 / liveMag : 1;
+    const lx = cx + x * rMax * scale, ly = cy + y * rMax * scale;
+    const inDz = liveMag < deadzone[side];
+    content += `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4" fill="${inDz ? '#c2c8d0' : '#0066cc'}"/>`;
+  } else {
+    content += `<circle cx="${cx}" cy="${cy}" r="4" fill="#c2c8d0"/>`;
+  }
+
+  svg.innerHTML = content;
+
+  const errEl = document.getElementById(errId);
+  if (ready) {
+    const avgErr = withData.reduce((a, o) => a + Math.abs(o.v - 1.0), 0) / withData.length;
+    errEl.textContent = `err ${(avgErr * 100).toFixed(1)}%`;
+  } else if (withData.length) {
+    errEl.textContent = `${Math.round(coverage * 100)}% traced`;
+  } else {
+    errEl.textContent = '\u2014';
+  }
+}
+
+function fmt(v) { const sign = v < 0 ? '-' : ' '; return sign + Math.abs(v).toFixed(2); }
+
+// ---- Rumble ----
+// A single very-long playEffect() call is unreliable across browsers/drivers for a "continuous"
+// rumble - some cap or drop long durations silently. Toggled motors instead re-fire a short pulse
+// on an interval, which is the pattern browsers actually handle consistently.
+const motorState = { weak: false, strong: false };
+let rumbleInterval = null;
+function currentGamepad() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  return gamepadIndex !== null ? pads[gamepadIndex] : null;
+}
+function stopRumble() {
+  const gp = currentGamepad();
+  if (!gp || !gp.vibrationActuator) return;
+  if (gp.vibrationActuator.reset) gp.vibrationActuator.reset();
+  else gp.vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: 1, weakMagnitude: 0, strongMagnitude: 0 });
+}
+function pulseOnce(weak, strong, duration) {
+  const gp = currentGamepad();
+  if (gp && gp.vibrationActuator) gp.vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration, weakMagnitude: weak, strongMagnitude: strong });
+}
+function updateContinuousRumble() {
+  if (rumbleInterval) { clearInterval(rumbleInterval); rumbleInterval = null; }
+  const weakMag = motorState.weak ? 1.0 : 0, strongMag = motorState.strong ? 1.0 : 0;
+  if (weakMag > 0 || strongMag > 0) {
+    pulseOnce(weakMag, strongMag, 250);
+    rumbleInterval = setInterval(() => pulseOnce(weakMag, strongMag, 250), 200);
+  } else {
+    stopRumble();
+  }
+}
+function toggleMotor(btn, key) { motorState[key] = !motorState[key]; btn.classList.toggle('on', motorState[key]); updateContinuousRumble(); }
+const rumbleLeftBtn = document.getElementById('rumbleLeft'), rumbleRightBtn = document.getElementById('rumbleRight');
+rumbleLeftBtn.addEventListener('click', () => toggleMotor(rumbleLeftBtn, 'strong'));
+rumbleRightBtn.addEventListener('click', () => toggleMotor(rumbleRightBtn, 'weak'));
+document.getElementById('rumbleStop').addEventListener('click', () => {
+  motorState.weak = false; motorState.strong = false;
+  rumbleLeftBtn.classList.remove('on'); rumbleRightBtn.classList.remove('on');
+  updateContinuousRumble();
+});
+document.getElementById('rumbleLight').addEventListener('click', () => pulseOnce(0.3, 0.3, 300));
+document.getElementById('rumbleFull').addEventListener('click', () => pulseOnce(1.0, 1.0, 500));
+document.getElementById('rumbleTriple').addEventListener('click', () => {
+  pulseOnce(0.8, 0.8, 130); setTimeout(() => pulseOnce(0.8, 0.8, 130), 250); setTimeout(() => pulseOnce(0.8, 0.8, 130), 500);
+  setTimeout(updateContinuousRumble, 700);
+});
+document.getElementById('rumbleLong').addEventListener('click', () => {
+  // one long pulse still needs the same re-fire trick to actually last the full 2s reliably
+  let elapsed = 0;
+  const id = setInterval(() => { pulseOnce(0.5, 0.5, 250); elapsed += 200; if (elapsed >= 2000) clearInterval(id); }, 200);
+  pulseOnce(0.5, 0.5, 250);
+});
+document.getElementById('rumbleRamp').addEventListener('click', () => {
+  const steps = 8;
+  for (let i = 0; i <= steps; i++) setTimeout(() => pulseOnce(i / steps, i / steps, 220), i * 180);
+});
+document.getElementById('rumbleHeartbeat').addEventListener('click', () => {
+  const beat = () => { pulseOnce(0.9, 0.9, 90); setTimeout(() => pulseOnce(0.9, 0.9, 90), 160); };
+  beat(); setTimeout(beat, 700); setTimeout(beat, 1400);
+});
+document.getElementById('resetCal').addEventListener('click', () => { [buttonMeta[6], buttonMeta[7]].forEach(m => { m.minSeen = 1; m.maxSeen = 0; }); });
+
+// ---- Move detector: rotation-invariant pattern matching, both sticks ----
+// Directions in rotational order (45deg steps); index deltas encode "how many steps clockwise",
+// so a shape like "quarter circle" or "dragon punch" is defined once as a relative step pattern
+// and automatically matches starting from any of the 8 directions instead of one hardcoded numpad code.
+const ROT_ORDER = ['6','3','2','1','4','7','8','9'];
+function dirIndex(d) { return ROT_ORDER.indexOf(d); }
+function stepDelta(a, b) { let d = (dirIndex(b) - dirIndex(a) + 8) % 8; if (d > 4) d -= 8; return d; }
+function deltas(entries) { const out = []; for (let i = 0; i < entries.length - 1; i++) out.push(stepDelta(entries[i].dir, entries[i + 1].dir)); return out; }
+
+const MOVE_DEFS = [
+  { name: 'Half Circle', len: 5, window: 4 * 240, test: e => { const s = deltas(e); return s.every(x => x === s[0]) && Math.abs(s[0]) === 1; } },
+  { name: 'Dragon Punch', len: 4, window: 3 * 240, test: e => { const s = deltas(e); return (s[0]===1&&s[1]===1&&s[2]===-1)||(s[0]===-1&&s[1]===-1&&s[2]===1); } },
+  { name: 'Dragon Punch', len: 3, window: 2 * 260, test: e => { const s = deltas(e); return (s[0]===2&&s[1]===-1)||(s[0]===-2&&s[1]===1); } },
+  { name: 'Quarter Circle', len: 3, window: 2 * 240, test: e => { const s = deltas(e); return s[0] === s[1] && Math.abs(s[0]) === 1; } },
+];
+
+function dirFromXY(x, y, side) {
+  const mag = Math.hypot(x, y);
+  if (mag < deadzone[side]) return null;
+  let angle = Math.atan2(y, x); if (angle < 0) angle += Math.PI * 2;
+  return ROT_ORDER[Math.round(angle / (Math.PI / 4)) % 8];
+}
+function dirFromDpad(buttons) {
+  const u = buttons[12] && buttons[12].pressed, d = buttons[13] && buttons[13].pressed;
+  const l = buttons[14] && buttons[14].pressed, r = buttons[15] && buttons[15].pressed;
+  if (u && r) return '9'; if (u && l) return '7'; if (d && r) return '3'; if (d && l) return '1';
+  if (u) return '8'; if (d) return '2'; if (l) return '4'; if (r) return '6';
+  return null;
+}
+
+const dirState = { L: { history: [], lastDir: null, pendingQC: null }, R: { history: [], lastDir: null, pendingQC: null } };
+const rotState = { L: mkRot(), R: mkRot() };
+function mkRot() { return { accum: 0, lastAngle: null, neutralSince: 0, startTime: 0, fired360: false, fired720: false }; }
+function resetRotation(side) { rotState[side] = mkRot(); }
+
+const numpadCells = { L: {}, R: {} };
+document.querySelectorAll('#numpadL .cell, #numpadR .cell').forEach(() => {});
+['L','R'].forEach(side => {
+  const el = document.getElementById('numpad' + side);
+  const layout = ['7','8','9','4','5','6','1','2','3'];
+  layout.forEach(c => {
+    const cell = document.createElement('div'); cell.className = 'cell'; cell.dataset.cell = c;
+    cell.textContent = { '7':'\u2196','8':'\u2191','9':'\u2197','4':'\u2190','5':'\u00b7','6':'\u2192','1':'\u2199','2':'\u2193','3':'\u2198' }[c];
+    el.appendChild(cell); numpadCells[side][c] = cell;
+  });
+});
+
+const moveLogEl = document.getElementById('moveLog');
+let moveLogEntries = [];
+function updateNumpad(side, dir) {
+  Object.values(numpadCells[side]).forEach(c => c.classList.remove('active'));
+  const cell = numpadCells[side][dir || '5']; if (cell) cell.classList.add('active');
+}
+function pushDetectedMove(side, move) {
+  moveLogEntries.unshift({ side, ...move });
+  if (moveLogEntries.length > 6) moveLogEntries.pop();
+  renderMoveLog();
+}
+function renderMoveLog() {
+  if (!moveLogEntries.length) { moveLogEl.innerHTML = '<div class="move-empty">QCF/QCB, dragon punch, half circles and 360&deg;/720&deg; are detected starting from any direction, on either stick.</div>'; return; }
+  moveLogEl.innerHTML = moveLogEntries.map((m, i) => `<div class="move-row side-${m.side}${i === 0 ? ' flash' : ''}"><span><span class="side-tag">${m.side}</span>${m.name}</span><span class="seq">${m.notation}</span></div>`).join('');
+  const first = moveLogEl.querySelector('.move-row'); if (first) setTimeout(() => first.classList.remove('flash'), 400);
+}
+// Quarter Circle's shape (two 45deg steps the same way) is also the literal first half of every
+// Half Circle and every rolled Dragon Punch - if it fired the instant it matched, it would wipe the
+// history before those longer moves could complete. So non-QC moves still fire immediately (they're
+// unambiguous), but a QC match is held as "pending" for a short grace window; if a longer move
+// completes in that window it wins and the pending QC is dropped, otherwise the QC fires on timeout.
+function checkMoves(side, now) {
+  const st = dirState[side];
+  const hist = st.history;
+  for (const def of MOVE_DEFS) {
+    if (def.name === 'Quarter Circle') continue;
+    if (hist.length < def.len) continue;
+    const tail = hist.slice(-def.len);
+    if (!def.test(tail)) continue;
+    const span = tail[tail.length - 1].t - tail[0].t;
+    if (span <= def.window) {
+      pushDetectedMove(side, { name: def.name, notation: tail.map(e => e.dir).join('') });
+      st.history = []; st.pendingQC = null;
+      return;
+    }
+  }
+  const qcDef = MOVE_DEFS.find(d => d.name === 'Quarter Circle');
+  if (hist.length >= qcDef.len) {
+    const tail = hist.slice(-qcDef.len);
+    if (qcDef.test(tail)) {
+      const span = tail[tail.length - 1].t - tail[0].t;
+      if (span <= qcDef.window) st.pendingQC = { tail, expireAt: now + 180 };
+    }
+  }
+}
+function checkPendingQC(side, now) {
+  const st = dirState[side];
+  if (st.pendingQC && now >= st.pendingQC.expireAt) {
+    pushDetectedMove(side, { name: 'Quarter Circle', notation: st.pendingQC.tail.map(e => e.dir).join('') });
+    st.pendingQC = null; st.history = [];
+  }
+}
+function processDirection(side, dir, now) {
+  updateNumpad(side, dir);
+  const st = dirState[side];
+  if (dir !== st.lastDir) {
+    st.lastDir = dir;
+    if (dir !== null) { st.history.push({ dir, t: now }); if (st.history.length > 8) st.history.shift(); checkMoves(side, now); }
+  }
+}
+function updateRotation(side, x, y, now) {
+  const st = rotState[side];
+  const mag = Math.hypot(x, y);
+  if (mag < deadzone[side]) { if (!st.neutralSince) st.neutralSince = now; if (now - st.neutralSince > 200) resetRotation(side); return; }
+  st.neutralSince = 0;
+  const angle = Math.atan2(y, x);
+  if (st.lastAngle === null) { st.lastAngle = angle; st.startTime = now; return; }
+  if (now - st.startTime > 2500) { resetRotation(side); rotState[side].lastAngle = angle; rotState[side].startTime = now; return; }
+  let delta = angle - st.lastAngle; delta -= 2 * Math.PI * Math.round(delta / (2 * Math.PI));
+  st.accum += delta; st.lastAngle = angle;
+  if (!st.fired360 && Math.abs(st.accum) >= Math.PI * 2 * 0.9) { pushDetectedMove(side, { name: '360 Rotation', notation: '360\u00b0' }); st.fired360 = true; }
+  if (!st.fired720 && Math.abs(st.accum) >= Math.PI * 4 * 0.9) { pushDetectedMove(side, { name: '720 Rotation', notation: '720\u00b0' }); st.fired720 = true; resetRotation(side); }
+}
+
+// ---- Touchpad position: the Gamepad API standard mapping only guarantees the click (button 17).
+// Some Chromium builds additionally expose the primary/secondary touch as extra, non-standard axes
+// past the first 4 - if present we use them, otherwise we're honest that only click is available.
+function updateTouchpad(gp) {
+  const dot1 = document.getElementById('tpDot1'), dot2 = document.getElementById('tpDot2'), note = document.getElementById('tpNote');
+  if (gp.axes.length >= 6) {
+    note.textContent = 'Live finger position from extra gamepad axes (non-standard, browser-dependent).';
+    dot1.style.display = 'block';
+    dot1.style.left = (50 + gp.axes[4] * 50) + '%';
+    dot1.style.top = (50 + gp.axes[5] * 50) + '%';
+    if (gp.axes.length >= 8) {
+      dot2.style.display = 'block';
+      dot2.style.left = (50 + gp.axes[6] * 50) + '%';
+      dot2.style.top = (50 + gp.axes[7] * 50) + '%';
+    } else dot2.style.display = 'none';
+  } else {
+    dot1.style.display = 'none'; dot2.style.display = 'none';
+    note.textContent = 'This browser only exposes touchpad click via the Gamepad API, not finger position (that needs WebHID). Click state is in the System row above.';
+  }
+}
+
+// ---- Mic and speaker: the controller's mic/speaker are plain OS audio devices, not part of the
+// Gamepad API at all - reachable through getUserMedia (mic) and setSinkId (output routing).
+async function populateAudioDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const micSel = document.getElementById('micSelect'), spkSel = document.getElementById('speakerSelect');
+    const micPrev = micSel.value, spkPrev = spkSel.value;
+    micSel.innerHTML = '<option value="">Default</option>';
+    spkSel.innerHTML = '<option value="">Default</option>';
+    devices.filter(d => d.kind === 'audioinput').forEach(d => {
+      const opt = document.createElement('option'); opt.value = d.deviceId; opt.textContent = d.label || 'Microphone';
+      if (/wireless controller|dualsense|dualshock/i.test(d.label)) opt.selected = true;
+      micSel.appendChild(opt);
+    });
+    devices.filter(d => d.kind === 'audiooutput').forEach(d => {
+      const opt = document.createElement('option'); opt.value = d.deviceId; opt.textContent = d.label || 'Speaker';
+      if (/wireless controller|dualsense|dualshock/i.test(d.label)) opt.selected = true;
+      spkSel.appendChild(opt);
+    });
+    if (micPrev) micSel.value = micPrev;
+    if (spkPrev) spkSel.value = spkPrev;
+  } catch (e) { /* labels stay blank until permission is granted; fine */ }
+}
+populateAudioDevices();
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', populateAudioDevices);
+
+let micStream = null, micAudioCtx = null, micRaf = null;
+document.getElementById('micBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('micBtn'), note = document.getElementById('micNote');
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop()); micStream = null;
+    if (micRaf) cancelAnimationFrame(micRaf); micRaf = null;
+    if (micAudioCtx) micAudioCtx.close();
+    document.getElementById('micMeter').style.width = '0%';
+    btn.textContent = 'Enable Mic Test'; btn.classList.remove('on');
+    return;
+  }
+  try {
+    const deviceId = document.getElementById('micSelect').value;
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true });
+    populateAudioDevices();
+    micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = micAudioCtx.createMediaStreamSource(micStream);
+    const analyser = micAudioCtx.createAnalyser(); analyser.fftSize = 512;
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.fftSize);
+    function tick() {
+      analyser.getByteTimeDomainData(data);
+      let peak = 0; for (let i = 0; i < data.length; i++) { const v = Math.abs(data[i] - 128); if (v > peak) peak = v; }
+      document.getElementById('micMeter').style.width = Math.min(100, (peak / 128) * 140) + '%';
+      micRaf = requestAnimationFrame(tick);
+    }
+    tick();
+    note.textContent = 'Listening \u2014 the bar should move when you speak.';
+    btn.textContent = 'Stop Mic Test'; btn.classList.add('on');
+  } catch (e) {
+    note.textContent = 'Mic access failed: ' + e.message;
+  }
+});
+
+document.getElementById('speakerBtn').addEventListener('click', async () => {
+  const note = document.getElementById('speakerNote');
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(); osc.frequency.value = 440; osc.type = 'sine';
+    const gain = ctx.createGain(); gain.gain.value = 0.25;
+    const dest = ctx.createMediaStreamDestination();
+    osc.connect(gain); gain.connect(dest);
+    const audioEl = new Audio(); audioEl.srcObject = dest.stream;
+    const deviceId = document.getElementById('speakerSelect').value;
+    if (deviceId && audioEl.setSinkId) {
+      try { await audioEl.setSinkId(deviceId); note.textContent = 'Routed to the selected output device.'; }
+      catch (e) { note.textContent = 'Could not route to that device \u2014 played on system default.'; }
+    } else if (deviceId) {
+      note.textContent = 'This browser can\u2019t choose an output device (no setSinkId) \u2014 played on system default.';
+    } else {
+      note.textContent = 'Playing a 440Hz test tone.';
+    }
+    await audioEl.play().catch(() => {});
+    osc.start();
+    setTimeout(() => { osc.stop(); ctx.close(); }, 700);
+  } catch (e) {
+    note.textContent = 'Playback failed: ' + e.message;
+  }
+});
+
+window.addEventListener('gamepadconnected', (e) => {
+  gamepadIndex = e.gamepad.index;
+  document.getElementById('statusDot').classList.add('connected');
+  document.getElementById('statusText').textContent = 'Connected: ' + e.gamepad.id;
+  document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = !e.gamepad.vibrationActuator);
+  if (!rafId) loop();
+});
+window.addEventListener('gamepaddisconnected', (e) => {
+  if (e.gamepad.index === gamepadIndex) {
+    gamepadIndex = null;
+    document.getElementById('statusDot').classList.remove('connected');
+    document.getElementById('statusText').textContent = 'No controller detected';
+    ['infoId','infoIndex','infoMapping','infoCounts','infoVibration'].forEach(id => { document.getElementById(id).textContent = '\u2014'; });
+    document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = true);
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+});
+
+const CHANGE_EPS = 0.05;
+function updateMeta(meta, val, now) {
+  meta.points.push({ t: now, v: val });
+  while (meta.points.length && now - meta.points[0].t > WINDOW_MS) meta.points.shift();
+  if (Math.abs(val - meta.lastVal) > CHANGE_EPS) { if (meta.lastChangeTs) meta.lastDelta = now - meta.lastChangeTs; meta.lastChangeTs = now; meta.lastVal = val; }
+  if (val < meta.minSeen) meta.minSeen = val;
+  if (val > meta.maxSeen) meta.maxSeen = val;
+}
+
+function loop() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = gamepadIndex !== null ? pads[gamepadIndex] : null;
+  const now = performance.now();
+
+  if (gp) {
+    document.getElementById('infoId').textContent = gp.id;
+    document.getElementById('infoIndex').textContent = gp.index;
+    document.getElementById('infoMapping').textContent = gp.mapping || 'none';
+    document.getElementById('infoCounts').textContent = `${gp.buttons.length} / ${gp.axes.length}`;
+    document.getElementById('infoVibration').textContent = gp.vibrationActuator ? gp.vibrationActuator.type : 'not supported';
+
+    document.querySelectorAll('[data-btn]').forEach(el => {
+      const idx = parseInt(el.dataset.btn, 10); const btn = gp.buttons[idx];
+      applyPressure(el, btn ? btn.value : 0);
+    });
+
+    const l2 = gp.buttons[6] ? gp.buttons[6].value : 0, r2 = gp.buttons[7] ? gp.buttons[7].value : 0;
+    document.getElementById('fillL2').style.width = (l2 * 100) + '%';
+    document.getElementById('fillR2').style.width = (r2 * 100) + '%';
+    document.getElementById('valL2').textContent = 'L2 \u00b7 ' + l2.toFixed(2);
+    document.getElementById('valR2').textContent = 'R2 \u00b7 ' + r2.toFixed(2);
+
+    const lx = gp.axes[0] || 0, ly = gp.axes[1] || 0, rx = gp.axes[2] || 0, ry = gp.axes[3] || 0;
+
+    recordTrace('L', lx, ly); recordTrace('R', rx, ry);
+    drawStick('L', 'stickSvgL', 'errL', lx, ly); drawStick('R', 'stickSvgR', 'errR', rx, ry);
+    document.getElementById('coordsL').textContent = `x:${fmt(lx)} y:${fmt(ly)}`;
+    document.getElementById('coordsR').textContent = `x:${fmt(rx)} y:${fmt(ry)}`;
+
+    const dpadDir = dirFromDpad(gp.buttons);
+    processDirection('L', dpadDir || dirFromXY(lx, ly, 'L'), now);
+    updateRotation('L', lx, ly, now);
+    processDirection('R', dirFromXY(rx, ry, 'R'), now);
+    updateRotation('R', rx, ry, now);
+    updateTouchpad(gp);
+    checkPendingQC('L', now);
+    checkPendingQC('R', now);
+
+    gp.buttons.forEach((b, i) => {
+      const m = buttonMeta[i]; if (!m) return;
+      updateMeta(m, b.value, now);
+      drawTimeline(`tlc-btn-${i}`, m.points, 0, 1, now);
+      const valEl = document.getElementById(`tlv-btn-${i}`); if (valEl) valEl.textContent = b.value.toFixed(2);
+      const dEl = document.getElementById(`tld-btn-${i}`); if (dEl) dEl.textContent = m.lastDelta != null ? `\u0394${Math.round(m.lastDelta)}ms` : '\u2013';
+    });
+    gp.axes.forEach((a, i) => {
+      const m = axisMeta[i]; if (!m) return;
+      updateMeta(m, a, now);
+      drawTimeline(`tlc-axis-${i}`, m.points, -1, 1, now);
+      const valEl = document.getElementById(`tlv-axis-${i}`); if (valEl) valEl.textContent = a.toFixed(2);
+      const dEl = document.getElementById(`tld-axis-${i}`); if (dEl) dEl.textContent = m.lastDelta != null ? `\u0394${Math.round(m.lastDelta)}ms` : '\u2013';
+    });
+
+    ['rangeL2','rangeR2'].forEach((id, i) => {
+      const m = i === 0 ? buttonMeta[6] : buttonMeta[7]; const el = document.getElementById(id);
+      const warn = m.maxSeen < 0.9 && m.maxSeen > 0;
+      el.textContent = `range ${m.minSeen.toFixed(2)}\u2013${m.maxSeen.toFixed(2)}${warn ? ' \u26a0' : ''}`;
+      el.classList.toggle('warn', warn);
+    });
+  }
+
+  rafId = requestAnimationFrame(loop);
+}
+
+(function checkExisting() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  for (const p of pads) {
+    if (p) {
+      gamepadIndex = p.index;
+      document.getElementById('statusDot').classList.add('connected');
+      document.getElementById('statusText').textContent = 'Connected: ' + p.id;
+      document.querySelectorAll('.rumble-btn').forEach(b => b.disabled = !p.vibrationActuator);
+      loop();
+      break;
+    }
+  }
+})();
+</script>
+</body>
+</html>
