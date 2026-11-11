@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Guitar Theory Lab</title>
+<style>
+:root{--bg:#f7f5f0;--ink:#1a1a1a;--mut:#5c5c5c;--line:#d9d2c3;--a:#1f6feb;--b:#862e9c;--both:#2b8a3e;--root:#c92a2a;--cta:#0b7285;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 16px}h3{margin:0 0 8px;font-size:15px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:16px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.05)}
+.lbl{font-size:12px;color:var(--mut);margin-bottom:8px}
+.bd{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;min-height:40px;min-width:40px;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);cursor:pointer;transition:background .12s,transform .05s}
+button:hover{background:#efece4}button:active{transform:scale(.97)}
+button:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+button.ca{background:var(--a);color:#fff;border-color:var(--a)}button.cb{background:var(--b);color:#fff;border-color:var(--b)}
+button small{display:block;font-size:12px;opacity:.75;line-height:1.1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.seg button{border:0;border-radius:0}
+#tabs{display:flex}#tabs button{flex:1}
+.slot{border-width:2px}.slot.a{border-color:var(--a)}.slot.b{border-color:var(--b)}
+.slot.on.a{background:var(--a)}.slot.on.b{background:var(--b)}
+.sec{display:none}
+body[data-tab=scale] .s-scale,body[data-tab=int] .s-int,body[data-tab=arp] .s-arp,body[data-tab=tune] .s-tune{display:block}
+body[data-tab=tune] .bar,body[data-tab=tune] .k,body[data-tab=tune] #lab{display:none}
+.tg{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.tc{display:flex;flex-direction:column;gap:8px;text-align:center}
+.tc button{min-width:0;padding:8px 4px}.tc .note{font-weight:700;font-size:18px}
+.tc.hit .note{background:var(--cta);color:#fff;border-color:var(--cta)}
+#gauge{position:relative;height:16px;border-radius:8px;background:#efece4;border:1px solid var(--line);margin-top:16px}
+#gauge:before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--ink);opacity:.4}
+#ndl{position:absolute;top:-5px;width:8px;height:24px;border-radius:4px;background:var(--mut);left:50%;transform:translateX(-50%);transition:left .08s}
+.bar-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:16px 0 8px}
+.board{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:16px}
+svg{display:block;min-width:680px;width:100%;height:auto}
+.leg{font-size:12px;color:var(--mut)}.leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 4px 0 12px}
+.chip{display:inline-block;border:1px solid #bbb;border-radius:99px;padding:0 8px;margin:2px 4px 2px 0;font-size:12px;background:#fdfdfb}
+.m{color:var(--mut);margin:4px 0}p{margin:4px 0}
+.st.now{background:var(--cta);color:#fff;border-color:var(--cta)}.st:disabled{opacity:1;cursor:default}
+.dash{border-style:dashed}
+.bar{position:sticky;bottom:0;display:flex;gap:16px;align-items:center;margin-top:16px;padding:8px 16px calc(8px + env(safe-area-inset-bottom,0px));background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 -1px 2px rgba(0,0,0,.06),0 -8px 24px rgba(0,0,0,.08)}
+.cta{background:var(--cta);color:#fff;border-color:var(--cta);min-width:112px;font-weight:600}.cta:hover{background:#0a5f6f}
+.bar label{flex:1;font-size:12px;color:var(--mut);display:flex;flex-direction:column}
+input[type=range]{width:100%;min-height:32px}
+</style></head>
+<body data-tab="scale"><main>
+<h1>🎸 Guitar Theory Lab</h1>
+<div class="seg" id="tabs" data-g="tab" style="display:flex"></div>
+<div class="card k"><div class="lbl">Key (root note)</div><div class="bd" id="root" data-g="root"></div>
+<div class="lbl" style="margin-top:16px">Instruments (tap to show; pick several to compare)</div><div class="bd" id="ins" data-g="ins"></div>
+<div class="lbl" style="margin-top:16px">Layout when several instruments are shown</div><div class="seg" id="lay" data-g="lay"></div>
+<div class="lbl" style="margin-top:16px">Scale / chord tone colours</div><div class="seg" id="col" data-g="col"></div></div>
+
+<div class="bar-top"><div class="leg" id="leg"></div><div class="seg" id="lab" data-g="lab"></div></div>
+<div class="board"><svg id="fb" viewBox="0 0 940 200" role="img" aria-label="Fretboard diagram of the selected instruments"></svg></div>
+
+<div class="card sec s-scale">
+<div class="lbl">Pick which slot to fill, then tap a scale. Set B to compare.</div>
+<div class="bd" id="slots" data-g="slot" style="margin-bottom:16px"></div>
+<div class="bd" id="sc" data-g="sc"></div>
+</div>
+<div class="card sec s-int"><div class="lbl">Tap an interval (it plays from the root)</div><div class="bd" id="iv" data-g="iv"></div></div>
+<div class="card sec s-arp">
+<div class="lbl">Chord</div><div class="bd" id="ct" data-g="ct"></div>
+<div class="lbl" style="margin-top:16px">Pattern (changes apply live while playing)</div><div class="bd" id="pat" data-g="pat"></div>
+<div class="lbl" style="margin-top:16px">Range for Up/Down/Skip/Random</div><div class="seg" id="oct" data-g="oct"></div>
+<div class="lbl" style="margin-top:16px">Sequence: numbers are positions in the chord (1 = root)</div>
+<div class="bd" id="steps" data-g="st"></div>
+<div class="bd" id="edit" data-g="edit" style="margin-top:8px"><button data-k="1" class="dash">✎ Edit as custom</button></div>
+<div class="bd" id="pad" data-g="pad" style="margin-top:8px"></div>
+</div>
+<div class="card sec s-tune">
+<div class="lbl">Instrument to tune</div><div class="seg" id="tin" data-g="tin"></div>
+<div class="lbl" style="margin-top:16px">Tuning preset</div><div class="bd" id="tp" data-g="tp"></div>
+<div class="lbl" style="margin-top:16px">Strings: ▲▼ move one semitone, tap a note to hear it</div>
+<div class="tg" id="tg" data-g="tu"></div>
+<div class="bd" id="ta" data-g="ta" style="margin-top:16px"><button data-k="strum">♪ Play all strings</button><button data-k="mic" id="mic">🎤 Listen with mic</button></div>
+<div id="gauge"><div id="ndl"></div></div>
+<div id="tro" class="m" style="text-align:center">—</div>
+<div id="tmsg" class="m"></div>
+</div>
+<div id="info"></div>
+
+<div class="bar"><button id="play" class="cta">▶ Play</button>
+<label>Tempo: <b id="bv">120</b> bpm<input id="bpm" type="range" min="50" max="220" value="120" aria-label="Tempo"></label></div>
+</main>
+<script>
+const N=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const D=['1','♭2','2','♭3','3','4','♭5','5','♭6','6','♭7','7'];
+/* Tunings are MIDI note numbers, low string first (E2 = 40). */
+const TP=[['Standard',[40,45,50,55,59,64]],['Drop D',[38,45,50,55,59,64]],['Double drop D',[38,45,50,55,59,62]],['DADGAD',[38,45,50,55,57,62]],
+['Open G',[38,43,50,55,59,62]],['Open D',[38,45,50,54,57,62]],['Open E',[40,47,52,56,59,64]],['Open A',[40,45,52,57,61,64]],
+['Half step down',[39,44,49,54,58,63]],['Full step down',[38,43,48,53,57,62]]];
+const PT={gtr:TP,
+bass:[['Standard',[28,33,38,43]],['Drop D',[26,33,38,43]],['Half step down',[27,32,37,42]],['Full step down',[26,31,36,41]],['Drop C',[24,31,36,41]]],
+uke:[['Standard (GCEA)',[67,60,64,69]],['Low G',[55,60,64,69]],['Baritone (DGBE)',[50,55,59,64]],['D tuning (ADF♯B)',[69,62,66,71]],['Half step down',[66,59,63,68]]]};
+const STDI={gtr:TP[0][1],bass:PT.bass[0][1],uke:PT.uke[0][1]};
+const LIM={gtr:[28,76],bass:[20,60],uke:[48,84]};
+/* Current tuning of each instrument, MIDI notes in string order (bottom string first). Edited in place. */
+const TN={gtr:[...STDI.gtr],bass:[...STDI.bass],uke:[...STDI.uke]};
+const T=TN.gtr;
+try{for(const k in TN){const t=JSON.parse(localStorage.getItem(k=='gtr'?'gtl-tun':'gtl-tun-'+k));
+  if(Array.isArray(t)&&t.length==TN[k].length&&t.every(v=>Number.isInteger(v)&&v>=LIM[k][0]&&v<=LIM[k][1]))TN[k].splice(0,t.length,...t)}}catch(e){}
+/* Instruments: t = open-string MIDI notes in string order (bottom string first), w = string thickness. */
+const IN={gtr:{n:'Guitar',get t(){return T},w:i=>1+i*.35},bass:{n:'Bass (4-string)',get t(){return TN.bass},w:i=>1.6+i*.7},uke:{n:'Ukulele',get t(){return TN.uke},w:()=>1.6}};
+const SC=[
+['Major (Ionian)',[0,2,4,5,7,9,11],'Bright and stable, the "home" sound.'],
+['Mixolydian',[0,2,4,5,7,9,10],'Major scale with a ♭7. Bluesy dominant rock/folk sound; sits over a dominant 7 chord.'],
+['Dorian',[0,2,3,5,7,9,10],'Minor with a natural 6. Cool, funky/jazzy minor.'],
+['Phrygian',[0,1,3,5,7,8,10],'Minor with a ♭2. Dark, Spanish/metal flavour.'],
+['Lydian',[0,2,4,6,7,9,11],'Major with a ♯4. Dreamy and floating.'],
+['Natural minor',[0,2,3,5,7,8,10],'Aeolian: the default sad/serious minor.'],
+['Locrian',[0,1,3,5,6,8,10],'♭5 makes the root chord unstable; rarely a "home".'],
+['Harmonic minor',[0,2,3,5,7,8,11],'Natural minor with a raised 7: strong pull to the root, one augmented 2nd (♭6→7).'],
+['Double harmonic',[0,1,4,5,7,8,11],'Major 3rd and 7th but ♭2 and ♭6, so two augmented 2nds (♭2→3 and ♭6→7). The "Arabic/Byzantine" sound.'],
+['Major pentatonic',[0,2,4,7,9],'Major scale without 4 and 7. No tension; country/rock leads.'],
+['Minor pentatonic',[0,3,5,7,10],'Five notes; the rock/blues workhorse.'],
+['Blues',[0,3,5,6,7,10],'Minor pentatonic plus the ♭5 "blue note".']];
+const IV=[
+['P1','Perfect unison','Same note, same fret.'],
+['m2','Minor 2nd','1 fret up. Tense, semitone.'],
+['M2','Major 2nd','2 frets up (whole step).'],
+['m3','Minor 3rd','3 frets up. Sad colour.'],
+['M3','Major 3rd','4 frets up, or 1 string up &amp; 1 fret back (same fret across G→B).'],
+['P4','Perfect 4th','Same fret, 1 string up (G→B: +1 fret).'],
+['TT','Tritone (♭5)','1 string up, +1 fret. The "devil\'s interval".'],
+['P5','Perfect 5th','1 string up, +2 frets: the power-chord shape.'],
+['m6','Minor 6th','1 string up, +3 frets.'],
+['M6','Major 6th','1 string up, +4 frets.'],
+['m7','Minor 7th','2 strings up, same fret (not across G→B).'],
+['M7','Major 7th','2 strings up, +1 fret.'],
+['P8','Octave','2 strings up, +2 frets (not across G→B).']];
+const CH={maj:['Major',[0,4,7]],min:['Minor',[0,3,7]],dim:['Dim',[0,3,6]],aug:['Aug',[0,4,8]],sus4:['Sus4',[0,5,7]],maj7:['Maj7',[0,4,7,11]],dom7:['Dom7',[0,4,7,10]],min7:['Min7',[0,3,7,10]],m7b5:['m7♭5',[0,3,6,10]],scl:['Scale A, stacked 3rds',null]};
+const rg=n=>Array.from({length:n},(_,i)=>i+1);
+const up=L=>rg(L*S.oct+1);
+const PR={
+up:['Up',up],down:['Down',L=>up(L).reverse()],
+ud:['Up-down',L=>{const a=up(L);return[...a,...a.slice(1,-1).reverse()]}],
+skip:['Skip',L=>{const a=up(L),o=[];for(let i=0;i<a.length-2;i++)o.push(a[i],a[i+2]);return o}],
+rand:['Random',null],
+p1:['1-3-4-3-5-3-4-3',()=>[1,3,4,3,5,3,4,3]],p2:['1-2-3-2',()=>[1,2,3,2]],p3:['1-3-2-3',()=>[1,3,2,3]],
+p4:['1-3-2-4-3-5',()=>[1,3,2,4,3,5]],p5:['1-2-4-3-2',()=>[1,2,4,3,2]],p6:['1-4-2-4-3-4',()=>[1,4,2,4,3,4]],
+p7:['1-3-5-3-4-3',()=>[1,3,5,3,4,3]],custom:['✎ Custom',()=>S.cust]};
+const S={tab:'scale',tun:'gtr',root:9,lab:'n',a:1,b:-1,slot:'a',iv:7,ct:'maj',pat:'p1',oct:1,bpm:120,cust:[1,3,5,3],col:'s',ovl:true,ins:{gtr:true,bass:false,uke:false}};
+try{const c=JSON.parse(localStorage.getItem('gtl-cust'));if(Array.isArray(c))S.cust=c}catch(e){}
+const save=()=>{try{localStorage.setItem('gtl-cust',JSON.stringify(S.cust))}catch(e){}};
+let act=null,running=false,timer=null,ctx,step=0;
+const $=id=>document.getElementById(id);
+const P=n=>40+840*(1-Math.pow(2,-n/12))/(1-Math.pow(2,-15/12));
+const rm=min=>min+((S.root-min%12)+12)%12;
+
+function chordTones(){
+  if(S.ct!='scl')return CH[S.ct][1];
+  const st=SC[S.a][1],L=st.length;
+  return [0,2,4,6].map(i=>st[i%L]+(i>=L?12:0));
+}
+function tone(m,t=0,d=.9){
+  ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();
+  if(ctx.state=='suspended')ctx.resume();
+  const o=ctx.createOscillator(),f=ctx.createBiquadFilter(),g=ctx.createGain(),n=ctx.currentTime+t;
+  o.type='sawtooth';o.frequency.value=440*2**((m-69)/12);
+  f.type='lowpass';f.frequency.setValueAtTime(2400,n);f.frequency.exponentialRampToValueAtTime(350,n+d);
+  g.gain.setValueAtTime(0,n);g.gain.linearRampToValueAtTime(.2,n+.005);g.gain.exponentialRampToValueAtTime(.001,n+d);
+  o.connect(f);f.connect(g);g.connect(ctx.destination);o.start(n);o.stop(n+d+.05);
+}
+/* Playback register follows the first shown instrument (guitar, then bass, then ukulele). */
+const ref=()=>IN[['gtr','bass','uke'].find(k=>S.ins[k])||'gtr'];
+const lo=()=>Math.min(...ref().t);
+function toPos(m,I=IN.gtr){
+  const t=I.t,hi=Math.max(...t)+15,low=Math.min(...t);
+  while(m>hi)m-=12;
+  while(m<low)m+=12;
+  let best=null;
+  t.forEach((o,s)=>{const f=m-o;if(f>=0&&f<=15&&(!best||f<best.f))best={s,f}});
+  return {...best,pc:m%12,m};
+}
+/* Reads live state on every note, so edits apply immediately while playing. */
+function next(i){
+  if(S.tab=='int'){const b=rm(lo()+8);return{m:b+(i%2?S.iv:0)}}
+  if(S.tab=='scale'){
+    const b=rm(lo()+8),l=[];
+    [S.a,S.b].filter(x=>x>=0).forEach(x=>{SC[x][1].forEach(v=>l.push(b+v));l.push(b+12)});
+    return{m:l[i%l.length]};
+  }
+  const t=chordTones(),L=t.length,b=rm(lo());let q,st=-1;
+  if(S.pat=='rand')q=1+Math.random()*(L*S.oct+1)|0;
+  else{const a=PR[S.pat][1](L);if(!a.length)return{};st=i%a.length;q=a[st]}
+  if(!q)return{step:st};
+  const k=q-1;return{m:b+t[k%L]+12*(k/L|0),step:st};
+}
+function tick(){
+  if(!running)return;
+  const r=next(step++);
+  if(r.m!=null){tone(r.m);act={m:r.m,pc:r.m%12,step:r.step}}else act={step:r.step};
+  draw();mark();
+  timer=setTimeout(tick,30000/S.bpm);
+}
+function mark(){document.querySelectorAll('#steps .st').forEach((e,j)=>e.classList.toggle('now',!!act&&act.step==j))}
+function setRun(on){
+  running=on;clearTimeout(timer);$('play').textContent=on?'■ Stop':'▶ Play';
+  if(on){step=0;tick()}else{act=null;draw();mark()}
+}
+function aud(){const m=rm(lo()+8);tone(m);tone(m+S.iv,.5);tone(m,1.1);tone(m+S.iv,1.1)}
+
+/* ---- Tuner helpers ---- */
+const nn=m=>N[((m%12)+12)%12],oc=m=>Math.floor(m/12)-1;
+const same=(a,b)=>a.length==b.length&&a.every((v,i)=>v==b[i]);
+const std=()=>same(T,TP[0][1]);
+const gaps=(t=T)=>t.slice(1).map((m,i)=>{const d=m-t[i];return d>=0&&d<=12?IV[d][0]:(d<0?'↓'+(-d):d)+' st'}).join(' ');
+const saveT=()=>{try{localStorage.setItem(S.tun=='gtr'?'gtl-tun':'gtl-tun-'+S.tun,JSON.stringify(cur()))}catch(e){}};
+function flash(i,d=0){setTimeout(()=>{act={s:i,f:0,pc:cur()[i]%12};draw()},d*1000)}
+function unflash(d){setTimeout(()=>{act=null;draw()},d*1000)}
+function markHit(i){document.querySelectorAll('#tg .tc').forEach((e,j)=>e.classList.toggle('hit',j==i))}
+let mic=null,mt=0;
+/* Autocorrelation pitch detection; returns Hz or 0 when there is no clear note. */
+function pitch(b,sr){
+  const n=b.length>>1;let r0=0;
+  for(let i=0;i<n;i++)r0+=b[i]*b[i];
+  if(Math.sqrt(r0/n)<.01)return 0;
+  const a=Math.floor(sr/1000),z=Math.min(Math.floor(sr/35),n-2),r=new Float32Array(z+2);
+  for(let l=a-1;l<=z+1;l++){let s=0;for(let i=0;i<n;i++)s+=b[i]*b[i+l];r[l]=s}
+  let d=a;while(d<z&&r[d]>r[d+1])d++;
+  let mv=0;for(let l=d;l<=z;l++)if(r[l]>mv)mv=r[l];
+  if(mv<.5*r0)return 0;
+  for(let l=d+1;l<z;l++)if(r[l]>=.9*mv&&r[l]>r[l-1]&&r[l]>=r[l+1]){
+    const y1=r[l-1],y2=r[l],y3=r[l+1],den=y1-2*y2+y3;
+    return sr/(l+(den?.5*(y1-y3)/den:0));
+  }
+  return 0;
+}
+function listenLoop(){
+  if(!mic)return;
+  mic.an.getFloatTimeDomainData(mic.buf);
+  const f=pitch(mic.buf,ctx.sampleRate);
+  if(f){
+    mic.q=0;
+    const m=69+12*Math.log2(f/440);let i=0;
+    const C=cur();
+    C.forEach((t,j)=>{if(Math.abs(m-t)<Math.abs(m-C[i]))i=j});
+    const near=Math.abs(m-C[i])<2,tgt=near?C[i]:Math.round(m),c=(m-tgt)*100,ok=Math.abs(c)<=5;
+    $('ndl').style.left=(50+Math.max(-50,Math.min(50,c)))+'%';
+    $('ndl').style.background=ok?'var(--both)':'var(--mut)';
+    $('tro').textContent=`${nn(tgt)}${oc(tgt)} · ${f.toFixed(1)} Hz · ${ok?'in tune':c<0?'flat '+Math.round(c):'sharp +'+Math.round(c)} cents`;
+    markHit(near?i:-1);
+  }else if(++mic.q>12){$('tro').textContent='Listening… play a string';$('ndl').style.left='50%';markHit(-1)}
+  mt=setTimeout(listenLoop,50);
+}
+async function startMic(){
+  try{
+    ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state=='suspended')await ctx.resume();
+    const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}),an=ctx.createAnalyser();
+    an.fftSize=8192;ctx.createMediaStreamSource(st).connect(an);
+    mic={st,an,buf:new Float32Array(8192),q:0};
+    $('mic').textContent='■ Stop listening';$('tmsg').textContent='';$('tro').textContent='Listening… play a string';
+    listenLoop();
+  }catch(e){
+    const n=e&&e.name,embedded=window.self!==window.top;
+    $('tmsg').textContent=
+      !navigator.mediaDevices?'The microphone needs a secure page (https or a local file). Use the reference tones to tune by ear.':
+      n=='NotFoundError'?'No microphone was found. Connect one, or use the reference tones to tune by ear.':
+      embedded?'This embedded view blocks the microphone. Save the page as a file and open it from your computer (or open it in its own tab), then allow the mic. Meanwhile, use the reference tones.':
+      'Microphone access was blocked. Allow it in the browser\'s site settings (lock icon in the address bar), then try again. Meanwhile, use the reference tones.';
+  }
+}
+function stopMic(){
+  clearTimeout(mt);if(mic){mic.st.getTracks().forEach(t=>t.stop());mic=null}
+  $('mic').textContent='🎤 Listen with mic';$('ndl').style.left='50%';$('tro').textContent='—';markHit(-1);
+}
+
+/* ---- Colours, instrument comparison, drawing ---- */
+const gcol=(i,n)=>`hsl(${Math.round(250-230*i/Math.max(1,n-1))},65%,42%)`;
+/* Label colour for a gradient dot: white or near-black, whichever contrasts more. */
+const gtx=c=>{
+  const[h,s,l]=c.match(/\d+/g).map(Number),a=s/100*Math.min(l/100,1-l/100),
+    ch=n=>{const k=(n+h/30)%12,v=l/100-a*Math.max(-1,Math.min(k-3,9-k,1));return v<=.03928?v/12.92:((v+.055)/1.055)**2.4},
+    L=.2126*ch(0)+.7152*ch(8)+.0722*ch(4);
+  return 1.05/(L+.05)>=(L+.05)/.0603?'#fff':'#1a1a1a';
+};
+const gl=n=>`<i style="width:72px;height:10px;border-radius:5px;background:linear-gradient(90deg,${rg(n).map(i=>gcol(i-1,n)).join(',')})"></i>root (outlined) → top tone`;
+const view=()=>S.tab=='tune'?[S.tun]:['gtr','bass','uke'].filter(k=>S.ins[k]);
+const ovlOn=()=>S.ovl&&view().length>1;
+/* Difference from standard tuning, in semitones, per string. */
+const cur=()=>TN[S.tun];
+const dtxt=(m,i,k=S.tun)=>{const d=m-STDI[k][i];return d?(d>0?'+':'−')+Math.abs(d):'std'};
+/* String / marker colour per instrument in overlay mode. */
+const IC={gtr:'#555',bass:'#8d5524',uke:'#0b7285'};
+const ovlLeg=()=>'<br>strings: '+view().map(k=>`<i style="background:${IC[k]}"></i>${IN[k].n.split(' ')[0]}`).join('');
+function cmp(){
+  const v=view();if(v.length<2)return '';
+  const note=[];
+  if(S.ins.gtr&&S.ins.bass)note.push(`In standard tuning the bass is the guitar's four lowest strings, one octave down.`);
+  if(S.ins.gtr&&S.ins.uke)note.push(`The ukulele matches the guitar's top four strings (D G B E) with a capo at fret 5, except its G is the high one (re-entrant).`);
+  if(ovlOn())note.push(`Overlay: the bass sits on the guitar's four low strings, and the ukulele is drawn as a capo at fret 5 on the top four, so notes in the same spot match in standard tuning (with other tunings, differing notes are shown side by side). Coloured pips beside a note show which instruments have it there.`);
+  return `<div class="card"><h3>Instrument comparison</h3>${v.map(k=>`<p><b>${IN[k].n}</b>: ${IN[k].t.map(nn).join(' ')} <span class="m">(gaps: ${gaps(IN[k].t)})</span></p>`).join('')}<p class="m">${note.join(' ')} Notes outside an instrument's range are shown an octave or two away.</p></div>`;
+}
+function draw(){
+  const r=S.root,sa=new Set(SC[S.a][1]),sb=S.b>=0?new Set(SC[S.b][1]):null,ct=chordTones(),cs=new Set(ct.map(x=>x%12));
+  const grad=S.col=='g'&&((S.tab=='scale'&&!sb)||S.tab=='arp'),deg=S.tab=='arp'?ct.map(x=>x%12):SC[S.a][1];
+  /* Dot colour for a note (rel = semitones above the root), or null when it isn't shown. */
+  const cfor=(rel,f)=>{
+    const rt=rel==0,gr=()=>gcol(deg.indexOf(rel),deg.length);
+    if(S.tab=='scale'){
+      const a=sa.has(rel),b=sb&&sb.has(rel);
+      return a||b?(grad?gr():rt?'var(--root)':sb?(a&&b?'var(--both)':a?'var(--a)':'var(--b)'):'var(--a)'):null;
+    }
+    if(S.tab=='int')return rt?'var(--root)':rel==S.iv%12?'var(--a)':null;
+    if(S.tab=='tune')return f==0?'var(--a)':null;
+    return cs.has(rel)?(grad?gr():rt?'var(--root)':'var(--a)'):null;
+  };
+  const dot=(x,y,c,on,rt,txt,rad=11)=>{
+    const ring=on||(grad&&rt);
+    return `<circle cx="${x}" cy="${y}" r="${on?rad+3:rad}" fill="${c}" stroke="${ring?'#111':'#fff'}" stroke-width="${on?3:ring?2.5:1}"/>`+
+      (txt?`<text x="${x}" y="${y+4}" text-anchor="middle" font-size="10.5" font-weight="700" fill="${c[0]=='h'?gtx(c):'#fff'}">${txt}</text>`:'');
+  };
+  const name=(pc,rel)=>S.lab=='n'||S.tab=='tune'?N[pc]:D[rel];
+  let g='',y0=0;
+  if(ovlOn()){
+    /* One board, six rows. Bass = guitar rows 1-4 (an octave down); ukulele = capo at fret 5 on rows 3-6. */
+    const ids=view(),Y=s=>30+(5-s)*28,bot=40+5*28,pp={};
+    if(act&&S.tab=='arp'&&act.m!=null)ids.forEach(k=>{const q=toPos(act.m,IN[k]);if(q.s!=null)pp[k]={row:k=='uke'?q.s+2:q.s,fx:k=='uke'?q.f+5:q.f}});
+    g+=`<text x="4" y="12" font-size="12" font-weight="700" fill="#444">Overlay: ${ids.map(k=>IN[k].n.split(' ')[0]).join(' + ')}</text>`;
+    for(let f=0;f<=15;f++)g+=`<line x1="${P(f)}" y1="20" x2="${P(f)}" y2="${bot}" stroke="${f?'#b9a77c':'#333'}" stroke-width="${f?2:5}"/>`;
+    [3,5,7,9,12,15].forEach(f=>g+=`<text x="${(P(f-1)+P(f))/2}" y="${bot+18}" text-anchor="middle" font-size="11" fill="#777">${f}</text>`);
+    if(ids.includes('uke'))g+=`<line x1="${P(5)}" y1="${Y(5)-13}" x2="${P(5)}" y2="${Y(2)+13}" stroke="${IC.uke}" stroke-width="4"/>`;
+    for(let s=0;s<6;s++){
+      if(ids.includes('gtr'))g+=`<line x1="40" y1="${Y(s)-3}" x2="${P(15)}" y2="${Y(s)-3}" stroke="${IC.gtr}" stroke-width="${IN.gtr.w(5-s)}"/>`;
+      if(ids.includes('bass')&&s<4)g+=`<line x1="40" y1="${Y(s)}" x2="${P(15)}" y2="${Y(s)}" stroke="${IC.bass}" stroke-width="${IN.bass.w(3-s)}"/>`;
+      if(ids.includes('uke')&&s>=2)g+=`<line x1="${P(4)}" y1="${Y(s)+3}" x2="${P(15)}" y2="${Y(s)+3}" stroke="${IC.uke}" stroke-width="1.6"/>`;
+    }
+    for(let s=0;s<6;s++)for(let fx=0;fx<=15;fx++){
+      const ent=[];
+      if(ids.includes('gtr'))ent.push(['gtr',T[s]+fx]);
+      if(ids.includes('bass')&&s<4)ent.push(['bass',IN.bass.t[s]+fx]);
+      if(ids.includes('uke')&&s>=2&&fx>=5)ent.push(['uke',IN.uke.t[s-2]+fx-5]);
+      if(!ent.length)continue;
+      const x=fx?(P(fx-1)+P(fx))/2:20,y=Y(s),groups={};
+      ent.forEach(([k,m])=>(groups[m%12]=groups[m%12]||[]).push(k));
+      const pcs=Object.keys(groups).map(Number),split=pcs.length>1;
+      pcs.forEach((pc,gi)=>{
+        const rel=(pc-r+12)%12,c=cfor(rel,fx);if(!c)return;
+        const on=!!act&&groups[pc].some(k=>S.tab=='arp'?!!pp[k]&&pp[k].row==s&&pp[k].fx==fx:act.pc==pc),
+          cx=split?x+(gi-(pcs.length-1)/2)*16:x;
+        g+=dot(cx,y,c,on,rel==0,split?'':name(pc,rel),split?7:11);
+        /* Pips on the right show which instruments have this note here. */
+        groups[pc].forEach(k=>g+=`<circle cx="${cx+(split?9:14)}" cy="${y+{gtr:-6,bass:0,uke:6}[k]}" r="${split?2.5:3}" fill="${IC[k]}"/>`);
+      });
+    }
+    y0=bot+28;
+  }else view().forEach(k=>{
+    const I=IN[k],t=I.t,n=t.length,top=y0,Y=s=>top+30+(n-1-s)*28,bot=top+40+(n-1)*28,
+      pp=act&&S.tab=='arp'&&act.m!=null?toPos(act.m,I):null;
+    g+=`<text x="4" y="${top+12}" font-size="12" font-weight="700" fill="#444">${I.n}</text>`;
+    for(let f=0;f<=15;f++)g+=`<line x1="${P(f)}" y1="${top+20}" x2="${P(f)}" y2="${bot}" stroke="${f?'#b9a77c':'#333'}" stroke-width="${f?2:5}"/>`;
+    [3,5,7,9,12,15].forEach(f=>g+=`<text x="${(P(f-1)+P(f))/2}" y="${bot+18}" text-anchor="middle" font-size="11" fill="#777">${f}</text>`);
+    for(let s=0;s<n;s++)g+=`<line x1="40" y1="${Y(s)}" x2="${P(15)}" y2="${Y(s)}" stroke="#777" stroke-width="${I.w(n-1-s)}"/>`;
+    for(let s=0;s<n;s++)for(let f=0;f<=15;f++){
+      const pc=(t[s]+f)%12,rel=(pc-r+12)%12;let c=cfor(rel,f);
+      if(c&&S.tab=='tune'&&t[s]!=STDI[k][s])c='var(--b)';
+      if(!c)continue;
+      const on=!!act&&(S.tab=='tune'?act.s==s&&act.f==f:S.tab=='arp'?!!pp&&pp.s==s&&pp.f==f:act.pc==pc);
+      g+=dot(f?(P(f-1)+P(f))/2:20,Y(s),c,on,rel==0,name(pc,rel));
+    }
+    /* Tuner: label each string with its change from standard; a dashed ring marks the fret that now plays the old open note. */
+    if(S.tab=='tune')t.forEach((m,s)=>{
+      const d=m-STDI[k][s];
+      g+=`<text x="${P(15)+8}" y="${Y(s)+4}" font-size="11" font-weight="700" fill="${d?'var(--b)':'#777'}">${d?nn(STDI[k][s])+(d>0?' ▲':' ▼')+Math.abs(d):'std'}</text>`;
+      if(d<0&&-d<=15)g+=`<circle cx="${(P(-d-1)+P(-d))/2}" cy="${Y(s)}" r="11" fill="none" stroke="var(--b)" stroke-width="2" stroke-dasharray="3 2"/>`;
+    });
+    y0=bot+28;
+  });
+  $('fb').setAttribute('viewBox',`0 0 940 ${y0}`);
+  $('fb').innerHTML=g;
+}
+
+const chip=(t,c)=>`<span class="chip" style="border-color:${c||'#bbb'}">${t}</span>`;
+const nm=(st,c)=>st.map(i=>chip(`<b>${D[i%12]}</b> ${N[(S.root+i)%12]}`,c)).join('')||'—';
+const formula=st=>st.map((v,i)=>{const d=(((st[(i+1)%st.length]-v)+12)%12)||12;return {1:'H',2:'W',3:'W+H',4:'2W'}[d]||d}).join(' – ');
+const sInfo=(i,c)=>{const[n,st,d]=SC[i];return `<div class="card"><h3 style="color:${c}">${N[S.root]} ${n}</h3><div>${nm(st)}</div><p class="m">Steps (W=whole, H=half): ${formula(st)}</p><p>${d}</p></div>`};
+function info(){
+  let h='',l='';
+  if(S.tab=='scale'){
+    h=sInfo(S.a,'var(--a)');
+    if(S.b>=0){
+      const A=SC[S.a][1],B=SC[S.b][1];
+      h+=sInfo(S.b,'var(--b)')+`<div class="card"><h3>${SC[S.a][0]} vs ${SC[S.b][0]}</h3><p>Shared: ${nm(A.filter(x=>B.includes(x)),'var(--both)')}</p><p>Only ${SC[S.a][0]}: ${nm(A.filter(x=>!B.includes(x)),'var(--a)')}</p><p>Only ${SC[S.b][0]}: ${nm(B.filter(x=>!A.includes(x)),'var(--b)')}</p></div>`;
+      l='<i style="background:var(--root)"></i>root<i style="background:var(--both)"></i>in both<i style="background:var(--a)"></i>A only<i style="background:var(--b)"></i>B only'+(S.col=='g'?' · gradient is off while comparing':'');
+    }else l=S.col=='g'?gl(SC[S.a][1].length):'<i style="background:var(--root)"></i>root<i style="background:var(--a)"></i>scale tone';
+  }else if(S.tab=='int'){
+    const v=IV[S.iv];
+    h=`<div class="card"><h3>${v[1]} (${v[0]}): ${S.iv} semitones</h3><p>${N[S.root]} → ${N[(S.root+S.iv)%12]}</p><p>${v[2]}</p><p class="m">${std()?'Standard tuning E A D G B E. Each string is a 4th (5 frets) above the last, except G→B (a major 3rd, 4 frets).':'Tuning '+T.map(nn).join(' ')+' (string gaps: '+gaps()+'). The fret shapes above describe standard tuning.'}</p></div>`;
+    l='<i style="background:var(--root)"></i>root<i style="background:var(--a)"></i>interval note';
+  }else if(S.tab=='tune'){
+    const C=cur(),p=PT[S.tun].find(q=>same(C,q[1])),who=IN[S.tun].n.split(' ')[0],
+      diff=C.map((m,i)=>[i,m-STDI[S.tun][i]]).filter(x=>x[1]).map(([i,d])=>`string ${C.length-i} ${nn(STDI[S.tun][i])}→${nn(C[i])} (${d>0?'+':'−'}${Math.abs(d)})`).join(', ')||'identical to standard',
+      tip={gtr:'Standard guitar tuning is 4ths (P4) with one major 3rd (M3) between G and B. Open tunings stack a chord so the open strings ring it.',bass:'Standard bass tuning is 4ths (P4) throughout: the guitar\'s four low strings, an octave down.',uke:'Standard ukulele tuning is G C E A with a high, re-entrant G, so the strings do not simply rise in pitch.'}[S.tun];
+    h=`<div class="card"><h3>${who} ${p?p[0]:'custom'} tuning: ${C.map(nn).join(' ')}</h3><p>Versus standard: ${diff}</p><p>Gaps between strings: ${gaps(C)}</p><p class="m">${tip} The scale, interval and arpeggio tabs use the tunings set here.</p></div>`;
+    l='<i style="background:var(--a)"></i>open string (standard)<i style="background:var(--b)"></i>changed from standard<i style="box-sizing:border-box;border:2px dashed var(--b)"></i>fret that now plays the standard open note';
+  }else{
+    h=`<div class="card"><h3>${N[S.root]} ${CH[S.ct][0]}${S.ct=='scl'?' ('+SC[S.a][0]+')':''}</h3><div>${nm(chordTones())}</div><p class="m">Ringed dot = note playing. Position numbers past the last chord tone continue an octave up. Each pitch uses the lowest fret that can play it.</p></div>`;
+    l=S.col=='g'?gl(chordTones().length):'<i style="background:var(--root)"></i>root<i style="background:var(--a)"></i>chord tone';
+  }
+  $('info').innerHTML=h+(S.tab=='tune'?'':cmp());$('leg').innerHTML=l+(S.tab!='tune'&&ovlOn()?ovlLeg():'');
+}
+const mk=(id,items,cls)=>$(id).innerHTML=items.map(([k,l])=>{const c=cls(String(k));return `<button data-k="${k}" class="${c}" aria-pressed="${!!c}">${l}</button>`}).join('');
+function steps(){
+  const t=chordTones(),L=t.length,cu=S.pat=='custom',dg=q=>D[t[(q-1)%L]%12]+(q>L?'↑':'');
+  const a=S.pat=='rand'?null:PR[S.pat][1](L);
+  $('steps').innerHTML=a===null?'<span class="m">Random chord notes each step.</span>':a.length?a.map((q,i)=>`<button data-k="${i}" class="st"${cu?' title="Tap to remove"':' disabled'}>${q||'–'}<small>${q?dg(q):'rest'}</small></button>`).join(''):'<span class="m">Empty: tap positions below to add steps.</span>';
+  $('edit').style.display=cu?'none':'';$('pad').style.display=cu?'':'none';
+  $('pad').innerHTML=rg(8).map(n=>`<button data-k="${n}">${n}<small>${dg(n)}</small></button>`).join('')+'<button data-k="r">rest</button><button data-k="u" title="Remove last step">⌫ Undo</button><button data-k="c">Clear</button>';
+}
+function update(){
+  document.body.dataset.tab=S.tab;
+  mk('tabs',[['scale','Scales &amp; modes'],['int','Intervals'],['arp','Arpeggiator'],['tune','Tuner']],k=>k==S.tab?'on':'');
+  mk('root',N.map((n,i)=>[i,n]),k=>k==S.root?'on':'');
+  mk('lab',[['n','Notes'],['i','Intervals']],k=>k==S.lab?'on':'');
+  $('slots').innerHTML=`<button data-k="a" class="slot a ${S.slot=='a'?'on':''}">A: ${SC[S.a][0]}</button><button data-k="b" class="slot b ${S.slot=='b'?'on':''}">B: ${S.b>=0?SC[S.b][0]:'none'}</button>`+(S.b>=0?'<button data-k="clr">✕ Clear B</button>':'');
+  mk('sc',SC.map((s,i)=>[i,s[0]]),k=>k==S.a?'ca':k==S.b?'cb':'');
+  mk('iv',IV.map((v,i)=>[i,`<b>${v[0]}</b><small>${i} st</small>`]),k=>k==S.iv?'on':'');
+  mk('ct',Object.entries(CH).map(([k,v])=>[k,v[0]]),k=>k==S.ct?'on':'');
+  mk('pat',Object.entries(PR).map(([k,v])=>[k,v[0]]),k=>k==S.pat?'on':'');
+  mk('oct',[[1,'1 octave'],[2,'2 octaves']],k=>k==S.oct?'on':'');
+  mk('ins',[['gtr','Guitar'],['bass','Bass'],['uke','Ukulele']].map(([k,l])=>[k,(S.ins[k]?'✓ ':'')+l]),k=>S.ins[k]?'on':'');
+  mk('col',[['s','Solid'],['g','Gradient']],k=>k==S.col?'on':'');
+  mk('lay',[['o','Overlay'],['s','Stacked']],k=>k==(S.ovl?'o':'s')?'on':'');
+  const C=cur();
+  mk('tin',[['gtr','Guitar'],['bass','Bass'],['uke','Ukulele']],k=>k==S.tun?'on':'');
+  mk('tp',PT[S.tun].map((q,i)=>[i,q[0]]),k=>same(C,PT[S.tun][+k][1])?'on':'');
+  $('tg').style.gridTemplateColumns=`repeat(${C.length},1fr)`;
+  $('tg').innerHTML=C.map((m,i)=>`<div class="tc"><div class="m" style="font-size:12px">String ${C.length-i}</div><button data-k="up:${i}" aria-label="String ${C.length-i} up a semitone">▲</button><button data-k="play:${i}" class="note" title="Play reference tone">${nn(m)}<small>${oc(m)}</small></button><button data-k="dn:${i}" aria-label="String ${C.length-i} down a semitone">▼</button><div class="m" style="font-size:12px;font-weight:600;color:${m!=STDI[S.tun][i]?'var(--b)':'var(--mut)'}">${dtxt(m,i)}</div></div>`).join('');
+  steps();draw();info();mark();
+}
+const H={
+  tab:k=>{S.tab=k;if(k=='tune'&&running)setRun(false);if(k!='tune')stopMic()},root:k=>S.root=+k,lab:k=>S.lab=k,col:k=>S.col=k,lay:k=>S.ovl=k=='o',
+  ins:k=>{if(S.ins[k]&&Object.values(S.ins).filter(Boolean).length==1)return;S.ins[k]=!S.ins[k]},
+  tin:k=>{S.tun=k},
+  tp:k=>{const C=cur();C.splice(0,C.length,...PT[S.tun][+k][1]);saveT()},
+  tu:k=>{
+    const[a,j]=k.split(':'),i=+j;
+    const C=cur(),[mn,mx]=LIM[S.tun];
+    if(a=='play'){tone(C[i],0,2.2);flash(i);unflash(1)}
+    else{C[i]=a=='up'?Math.min(mx,C[i]+1):Math.max(mn,C[i]-1);saveT();tone(C[i],0,1.2);flash(i);unflash(1)}
+  },
+  ta:k=>{
+    if(k=='strum'){const C=cur();C.forEach((m,i)=>{tone(m,i*.25,1.6);flash(i,i*.25)});unflash(C.length*.25+.4)}
+    else mic?stopMic():startMic();
+  },
+  slot:k=>{if(k=='clr'){S.b=-1;S.slot='a'}else S.slot=k},
+  sc:k=>{k=+k;if(S.slot=='b'&&S.b==k)S.b=-1;else S[S.slot]=k},
+  iv:k=>{S.iv=+k;if(!running)aud()},
+  ct:k=>S.ct=k,pat:k=>S.pat=k,oct:k=>S.oct=+k,
+  edit:()=>{const a=PR[S.pat][1]?PR[S.pat][1](chordTones().length):up(chordTones().length);S.cust=[...a];S.pat='custom';save()},
+  pad:k=>{if(k=='u')S.cust.pop();else if(k=='c')S.cust=[];else S.cust.push(k=='r'?0:+k);save()},
+  st:k=>{if(S.pat=='custom'){S.cust.splice(+k,1);save()}}
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-k]');if(!b)return;
+  const g=b.closest('[data-g]').dataset.g,k=b.dataset.k,f=H[g];
+  if(!f)return;
+  f(k);update();
+  /* update() rebuilds the buttons; give keyboard users their focus back. */
+  if(e.detail===0){const nb=document.querySelector(`[data-g="${g}"] [data-k="${k}"]`);if(nb)nb.focus()}
+});
+$('play').onclick=()=>setRun(!running);
+$('bpm').oninput=e=>{S.bpm=+e.target.value;$('bv').textContent=S.bpm};
+document.addEventListener('keydown',e=>{if(e.code=='Space'&&e.target==document.body&&S.tab!='tune'){e.preventDefault();setRun(!running)}});
+update();
+</script></body></html>
