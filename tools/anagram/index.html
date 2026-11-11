@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anagram Maker</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #1c2330;
+    --muted: #667085;
+    --line: #dfe3ea;
+    --accent: #2f6fed;
+    --accent-dark: #2559c4;
+    --pin: #fff3cd;
+    --pin-line: #e0a800;
+    --t: 3rem;
+  }
+  @media (max-width: 480px) { :root { --t: 2.4rem; } }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h1 { margin: 0 0 .25rem; font-size: 1.8rem; }
+  h2 { margin: 0 0 .5rem; font-size: 1.1rem; }
+  .sub { margin: 0 0 1.25rem; color: var(--muted); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, .05);
+  }
+  label.field { display: block; font-weight: 600; margin-bottom: .35rem; }
+  input[type=text] {
+    width: 100%;
+    font: inherit;
+    font-size: 1.1rem;
+    padding: .6rem .8rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input[type=text]:focus-visible, button:focus-visible, select:focus-visible, .tile:focus-visible {
+    outline: 3px solid rgba(47, 111, 237, .45);
+    outline-offset: 2px;
+  }
+
+  .board {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: flex-start;
+    min-height: calc(var(--t) * 1.15 + 2rem);
+    padding: 1rem;
+    margin: 1rem 0 .5rem;
+    background: #eef1f6;
+    border: 1px dashed #c6cddb;
+    border-radius: 12px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .board.empty::before { content: "Type some letters above"; color: var(--muted); align-self: center; }
+
+  .tile, .ph { width: var(--t); height: calc(var(--t) * 1.15); border-radius: 10px; }
+  .tile {
+    position: relative;
+    display: grid;
+    place-items: center;
+    font-size: calc(var(--t) * .55);
+    font-weight: 650;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-bottom-width: 3px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .08);
+    cursor: grab;
+    touch-action: none;
+  }
+  .tile:hover { border-color: #b9c3d6; }
+  .tile.space {
+    width: calc(var(--t) * .62);
+    background: transparent;
+    border: 2px dashed #aab6cc;
+    box-shadow: none;
+    color: #8f9bb3;
+    font-size: calc(var(--t) * .4);
+    font-weight: 400;
+  }
+  .tile.selected { background: #e3edff; outline: 3px solid var(--accent); outline-offset: 1px; }
+  .tile.space.selected { background: #e3edff; }
+  .tile.pinned { background: var(--pin); border-color: var(--pin-line); }
+  .tile.space.pinned { background: transparent; border-color: var(--pin-line); }
+  .tile.pinned.selected { background: var(--pin); }
+  .tile.pinned::after {
+    content: "";
+    position: absolute; top: 4px; right: 4px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--pin-line);
+  }
+  .tile.dragging {
+    position: fixed;
+    z-index: 10;
+    margin: 0;
+    cursor: grabbing;
+    transform: scale(1.1);
+    box-shadow: 0 10px 24px rgba(16, 24, 40, .28);
+  }
+  .ph { border: 2px dashed #8fb0f4; background: #e3edff; }
+
+  .hint { margin: 0 0 1rem; font-size: .85rem; color: var(--muted); }
+  .scope { margin: .6rem 0 0; font-size: .9rem; color: var(--muted); }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  .toolbar + .toolbar { margin-top: .5rem; }
+  .tlabel { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; min-width: 5.5rem; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: .5rem .9rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #f3f5f9; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { background: var(--accent-dark); }
+  button.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: .5rem .6rem; }
+  button.small { padding: .35rem .7rem; font-size: .9rem; }
+
+  .opts { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: .9rem; font-size: .95rem; align-items: center; }
+  .opts label { display: inline-flex; gap: .4rem; align-items: center; }
+  select { font: inherit; padding: .25rem .4rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+
+  .rlabel { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .rtext { font-size: 1.9rem; font-weight: 650; word-break: break-word; margin: .15rem 0; white-space: pre-wrap; }
+  .meta { color: var(--muted); font-size: .9rem; margin-bottom: .8rem; min-height: 1.4em; }
+  #status { color: #1a7f4b; font-size: .9rem; }
+
+  ul#saved { list-style: none; margin: 0 0 .5rem; padding: 0; }
+  ul#saved li {
+    display: flex; gap: .5rem; align-items: center;
+    padding: .4rem 0; border-top: 1px solid var(--line);
+  }
+  ul#saved li:first-child { border-top: 0; }
+  ul#saved .txt { flex: 1; font-weight: 600; word-break: break-word; }
+  ul#saved .src { color: var(--muted); font-size: .8rem; font-weight: 400; display: block; }
+  ul#saved button { padding: .25rem .6rem; font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Anagram Maker</h1>
+  <p class="sub">Shuffle the letters of a word or phrase, or rearrange them by hand.</p>
+
+  <section class="card">
+    <label class="field" for="src">Your text</label>
+    <input id="src" type="text" maxlength="120" value="Astronomer" autocomplete="off" spellcheck="false" placeholder="Type a word or phrase…">
+
+    <div id="board" class="board" role="group" aria-label="Letter tiles"></div>
+    <p class="hint">Tap tiles to select them (Shift-tap for a range). Drag to reorder. Keys on a focused tile: ← → Home End move, Space select, P pin, Delete removes a space, Esc clears the selection.</p>
+
+    <div class="toolbar">
+      <span class="tlabel">Arrange</span>
+      <button id="shuffle" class="primary" title="Enter in the text box also shuffles">Shuffle</button>
+      <button id="sort">Sort A–Z</button>
+      <button id="reverse">Reverse</button>
+      <button id="reset" title="Back to the typed text">Reset</button>
+    </div>
+    <div class="toolbar">
+      <span class="tlabel">Selection</span>
+      <button id="selAll" class="small">Select all</button>
+      <button id="selNone" class="small">Clear</button>
+      <button id="pin" class="small" title="Pinned tiles are skipped by shuffle, sort and reverse">Pin</button>
+      <button id="addSpace" class="small" title="Inserted after the last selected tile, or at the end">Add space</button>
+      <button id="delSpace" class="small">Remove space</button>
+    </div>
+    <p id="scope" class="scope" aria-live="polite"></p>
+
+    <div class="opts">
+      <label>Case
+        <select id="case">
+          <option value="lower" selected>lower</option>
+          <option value="upper">UPPER</option>
+          <option value="keep">As typed</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="rlabel">Result</div>
+    <div id="result" class="rtext">—</div>
+    <div id="meta" class="meta"></div>
+    <div class="toolbar">
+      <button id="copy">Copy</button>
+      <button id="save">Save</button>
+      <span id="status" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section class="card" id="savedCard" hidden>
+    <h2>Saved</h2>
+    <ul id="saved"></ul>
+    <button id="clearSaved" class="ghost">Clear all</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = id => document.getElementById(id);
+  const board = $('board'), srcEl = $('src'), caseEl = $('case');
+  const resultEl = $('result'), metaEl = $('meta'), statusEl = $('status'), scopeEl = $('scope');
+  const copyBtn = $('copy'), saveBtn = $('save'), pinBtn = $('pin');
+
+  const LETTER = /[\p{L}\p{N}]/u;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Space tiles: ch === ' '. Spaces from the typed text start pinned, which keeps word lengths.
+  let tiles = [];     // current arrangement: [{ id, ch, pinned, sel }]
+  let nextId = 0;
+  let lastSel = null; // id of the last tile tapped, anchor for Shift-range selection
+  let drag = null;
+
+  const isSpace = t => t.ch === ' ';
+  const mk = (ch, pinned = false) => ({ id: nextId++, ch, pinned, sel: false });
+
+  /* ---------- model ---------- */
+
+  function rebuild({ animate = false } = {}) {
+    tiles = [];
+    nextId = 0;
+    lastSel = null;
+    let gap = false;
+    for (const c of srcEl.value) {
+      if (LETTER.test(c)) {
+        if (gap && tiles.length) tiles.push(mk(' ', true));
+        gap = false;
+        tiles.push(mk(c));
+      } else if (/\s/.test(c)) gap = true;
+    }
+    render({ animate });
+  }
+
+  const caseFn = c => caseEl.value === 'lower' ? c.toLowerCase()
+                    : caseEl.value === 'upper' ? c.toUpperCase() : c;
+
+  const tidy = s => s.replace(/ {2,}/g, ' ').trim();
+
+  function arrangements(chars) {
+    let num = 1n;
+    for (let i = 2n; i <= BigInt(chars.length); i++) num *= i;
+    const counts = new Map();
+    chars.forEach(c => counts.set(c, (counts.get(c) || 0) + 1));
+    for (const k of counts.values()) for (let i = 2n; i <= BigInt(k); i++) num /= i;
+    return num;
+  }
+
+  const fmtBig = n => n < 10n ** 15n ? n.toLocaleString('en-US')
+                                     : Number(n).toExponential(2).replace('e+', ' × 10^');
+
+  // Tiles an arrange action will touch: the selection if any, otherwise everything; pinned tiles never move.
+  function scopeIdx() {
+    const anySel = tiles.some(t => t.sel);
+    const idx = [];
+    tiles.forEach((t, i) => { if (!t.pinned && (!anySel || t.sel)) idx.push(i); });
+    return idx;
+  }
+
+  /* ---------- rendering ---------- */
+
+  function makeTile(t) {
+    const el = document.createElement('div');
+    const space = isSpace(t);
+    el.className = 'tile' + (space ? ' space' : '') + (t.pinned ? ' pinned' : '') + (t.sel ? ' selected' : '');
+    el.dataset.id = t.id;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'button');
+    el.setAttribute('aria-pressed', String(t.sel));
+    el.setAttribute('aria-label', (space ? 'Space' : `Letter ${caseFn(t.ch)}`) +
+      (t.pinned ? ', pinned' : '') + (t.sel ? ', selected' : ''));
+    el.textContent = space ? '␣' : caseFn(t.ch);
+    return el;
+  }
+
+  function render({ focus = null, animate = true } = {}) {
+    const old = new Map();
+    if (animate) for (const el of board.children) old.set(el.dataset.id, el.getBoundingClientRect());
+
+    board.replaceChildren(...tiles.map(makeTile));
+    board.classList.toggle('empty', !tiles.length);
+
+    if (animate && !reduceMotion) {
+      for (const el of board.children) {
+        const o = old.get(el.dataset.id);
+        if (!o) continue;
+        const n = el.getBoundingClientRect();
+        const dx = o.left - n.left, dy = o.top - n.top;
+        if (dx || dy) el.animate(
+          [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+          { duration: 260, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
+    }
+    if (focus !== null) board.querySelector(`[data-id="${focus}"]`)?.focus();
+    updateOutput();
+  }
+
+  function updateOutput() {
+    const chars = tiles.map(t => caseFn(t.ch));
+    resultEl.textContent = tidy(chars.join('')) || '—';
+
+    const letters = tiles.filter(t => !isSpace(t)).length;
+    if (!tiles.length) {
+      metaEl.textContent = '';
+    } else {
+      const a = arrangements(chars);
+      const same = tiles.every((t, i) => t.id === i);
+      metaEl.textContent = `${letters} letter${letters === 1 ? '' : 's'} · ${fmtBig(a)} possible arrangement${a === 1n ? '' : 's'}` +
+                           (same ? ' · same as input' : '');
+    }
+
+    const sel = tiles.filter(t => t.sel);
+    const scope = scopeIdx().length;
+    scopeEl.textContent = !tiles.length ? '' :
+      sel.length ? `Shuffle, sort and reverse act on ${scope} of ${sel.length} selected tile${sel.length === 1 ? '' : 's'}` +
+                   (scope < sel.length ? ' (pinned ones are skipped)' : '')
+                 : `Shuffle, sort and reverse act on all ${scope} unpinned tile${scope === 1 ? '' : 's'}`;
+
+    $('selNone').disabled = !sel.length;
+    $('selAll').disabled = !tiles.length;
+    pinBtn.disabled = !sel.length;
+    pinBtn.textContent = sel.length && sel.every(t => t.pinned) ? 'Unpin' : 'Pin';
+    $('delSpace').disabled = !sel.some(isSpace);
+    $('addSpace').disabled = !tiles.length;
+    copyBtn.disabled = saveBtn.disabled = !tiles.length;
+  }
+
+  /* ---------- actions ---------- */
+
+  // Apply fn to the in-scope tiles; everything else keeps its position.
+  function arrangeFree(fn) {
+    const idx = scopeIdx();
+    const free = fn(idx.map(i => tiles[i]));
+    const next = tiles.slice();
+    idx.forEach((i, k) => { next[i] = free[k]; });
+    return next;
+  }
+
+  function fisherYates(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  const key = list => list.map(t => t.ch).join('');
+
+  function enough() {
+    if (scopeIdx().length >= 2) return true;
+    flash(tiles.some(t => t.sel) ? 'Select at least two unpinned tiles' : 'Not enough unpinned tiles');
+    return false;
+  }
+
+  function shuffle() {
+    if (!enough()) return;
+    const before = key(tiles);
+    let next = tiles;
+    for (let n = 0; n < 40; n++) {          // avoid "shuffling" into the same arrangement
+      next = arrangeFree(f => fisherYates(f.slice()));
+      if (key(next) !== before) break;
+    }
+    tiles = next;
+    render();
+  }
+
+  function sortAZ() {
+    if (!enough()) return;
+    tiles = arrangeFree(f => f.slice().sort((a, b) =>
+      a.ch.toLowerCase().localeCompare(b.ch.toLowerCase()) || a.id - b.id));
+    render();
+  }
+
+  function reverse() {
+    if (!enough()) return;
+    tiles = arrangeFree(f => f.slice().reverse());
+    render();
+  }
+
+  function tapTile(id, shift, focus = false) {
+    const i = tiles.findIndex(t => t.id === id);
+    if (i < 0) return;
+    const j = shift && lastSel !== null ? tiles.findIndex(t => t.id === lastSel) : -1;
+    if (j >= 0) {
+      for (let k = Math.min(i, j); k <= Math.max(i, j); k++) tiles[k].sel = true;
+    } else {
+      tiles[i].sel = !tiles[i].sel;
+    }
+    lastSel = id;
+    render({ animate: false, focus: focus ? id : null });
+  }
+
+  function togglePin() {
+    const sel = tiles.filter(t => t.sel);
+    const to = !sel.every(t => t.pinned);
+    sel.forEach(t => { t.pinned = to; });
+    render({ animate: false });
+  }
+
+  function addSpace() {
+    let at = tiles.length;
+    for (let i = tiles.length - 1; i >= 0; i--) if (tiles[i].sel) { at = i + 1; break; }
+    const t = mk(' ', true);
+    tiles.splice(at, 0, t);
+    render();
+  }
+
+  function removeSpaces(onlyId = null) {
+    tiles = tiles.filter(t => !(isSpace(t) && (onlyId === null ? t.sel : t.id === onlyId)));
+    render();
+  }
+
+  function moveTile(id, to) {
+    const from = tiles.findIndex(t => t.id === id);
+    to = Math.max(0, Math.min(tiles.length - 1, to));
+    if (from < 0 || from === to) return;
+    tiles.splice(to, 0, tiles.splice(from, 1)[0]);
+    render({ focus: id });
+  }
+
+  /* ---------- pointer drag ---------- */
+
+  board.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.tile');
+    if (!el || e.button > 0 || drag) return;
+    drag = { el, id: +el.dataset.id, sx: e.clientX, sy: e.clientY, pid: e.pointerId,
+             shift: e.shiftKey, active: false, ph: null, dx: 0, dy: 0 };
+    el.setPointerCapture(e.pointerId);
+  });
+
+  board.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    if (!drag.active) {
+      if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+      startDrag();
+    }
+    moveDrag(e);
+  });
+
+  board.addEventListener('pointerup', e => endDrag(e, false));
+  board.addEventListener('pointercancel', e => endDrag(e, true));
+
+  function startDrag() {
+    const { el } = drag;
+    const r = el.getBoundingClientRect();
+    drag.dx = drag.sx - r.left;
+    drag.dy = drag.sy - r.top;
+    drag.ph = document.createElement('div');
+    drag.ph.className = 'ph';
+    drag.ph.style.width = r.width + 'px';
+    el.before(drag.ph);
+    el.classList.add('dragging');
+    drag.active = true;
+  }
+
+  function moveDrag(e) {
+    const { el, ph } = drag;
+    el.style.left = (e.clientX - drag.dx) + 'px';
+    el.style.top = (e.clientY - drag.dy) + 'px';
+
+    let best = null, bestD = Infinity;
+    for (const c of board.children) {
+      if (c === el) continue;
+      const r = c.getBoundingClientRect();
+      const d = (e.clientX - (r.left + r.width / 2)) ** 2 + (e.clientY - (r.top + r.height / 2)) ** 2;
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (!best || best === ph) return;
+    const r = best.getBoundingClientRect();
+    if (e.clientX < r.left + r.width / 2) best.before(ph); else best.after(ph);
+  }
+
+  function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const d = drag;
+    drag = null;
+    if (!d.active) {                         // a tap, not a drag
+      if (!cancelled) tapTile(d.id, d.shift);
+      return;
+    }
+    if (cancelled) {
+      d.ph.remove();
+      d.el.classList.remove('dragging');
+      d.el.style.left = d.el.style.top = '';
+      render({ animate: false });
+      return;
+    }
+    d.ph.replaceWith(d.el);
+    d.el.classList.remove('dragging');
+    d.el.style.left = d.el.style.top = '';
+    const byId = new Map(tiles.map(t => [String(t.id), t]));
+    tiles = [...board.children].map(c => byId.get(c.dataset.id));
+    render({ animate: false });
+  }
+
+  /* ---------- keyboard ---------- */
+
+  board.addEventListener('keydown', e => {
+    const el = e.target.closest('.tile');
+    if (!el) return;
+    const id = +el.dataset.id;
+    const i = tiles.findIndex(t => t.id === id);
+    const moves = { ArrowLeft: i - 1, ArrowRight: i + 1, Home: 0, End: tiles.length - 1 };
+    if (e.key in moves) {
+      e.preventDefault();
+      moveTile(id, moves[e.key]);
+    } else if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      tapTile(id, e.shiftKey, true);
+    } else if (e.key === 'p' || e.key === 'P') {
+      tiles[i].pinned = !tiles[i].pinned;
+      render({ animate: false, focus: id });
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && isSpace(tiles[i])) {
+      e.preventDefault();
+      removeSpaces(id);
+      board.children[Math.min(i, tiles.length - 1)]?.focus();
+    } else if (e.key === 'Escape') {
+      tiles.forEach(t => { t.sel = false; });
+      render({ animate: false, focus: id });
+    }
+  });
+
+  /* ---------- copy / save ---------- */
+
+  let statusTimer;
+  function flash(msg) {
+    statusEl.textContent = msg;
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { statusEl.textContent = ''; }, 2200);
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch {}
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch { return false; }
+  }
+
+  const KEY = 'anagram-maker.saved';
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); if (!Array.isArray(saved)) saved = []; } catch { saved = []; }
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch {} };
+
+  function renderSaved() {
+    const ul = $('saved');
+    ul.replaceChildren(...saved.map((s, i) => {
+      const li = document.createElement('li');
+      const txt = document.createElement('span');
+      txt.className = 'txt';
+      txt.textContent = s.text;
+      const src = document.createElement('span');
+      src.className = 'src';
+      src.textContent = 'from "' + s.src + '"';
+      txt.appendChild(src);
+      const load = document.createElement('button');
+      load.textContent = 'Load';
+      load.onclick = () => loadSaved(s);
+      const cp = document.createElement('button');
+      cp.textContent = 'Copy';
+      cp.onclick = async () => flash(await copyText(s.text) ? 'Copied' : 'Copy failed');
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.setAttribute('aria-label', 'Delete');
+      del.onclick = () => { saved.splice(i, 1); persist(); renderSaved(); };
+      li.append(txt, load, cp, del);
+      return li;
+    }));
+    $('savedCard').hidden = !saved.length;
+  }
+
+  function loadSaved(s) {
+    srcEl.value = s.src;
+    rebuild();
+    const base = tiles.slice(), used = new Set(), next = [];
+    for (const c of Array.from(s.arr)) {
+      const t = base.find(t => t.ch === c && !used.has(t.id));
+      if (t) { used.add(t.id); next.push(t); }
+      else if (c === ' ') next.push(mk(' ', true));   // a space added by hand
+    }
+    const letters = list => list.filter(t => !isSpace(t)).length;
+    if (letters(next) === letters(base)) tiles = next;
+    render({ animate: false });
+  }
+
+  /* ---------- wiring ---------- */
+
+  $('shuffle').onclick = shuffle;
+  $('sort').onclick = sortAZ;
+  $('reverse').onclick = reverse;
+  $('reset').onclick = () => rebuild({ animate: true });
+  $('selAll').onclick = () => { tiles.forEach(t => { t.sel = true; }); render({ animate: false }); };
+  $('selNone').onclick = () => { tiles.forEach(t => { t.sel = false; }); render({ animate: false }); };
+  pinBtn.onclick = togglePin;
+  $('addSpace').onclick = addSpace;
+  $('delSpace').onclick = () => removeSpaces();
+
+  copyBtn.onclick = async () => flash(await copyText(resultEl.textContent) ? 'Copied' : 'Copy failed');
+  saveBtn.onclick = () => {
+    const text = resultEl.textContent;
+    if (saved.some(s => s.text === text && s.src === srcEl.value)) return flash('Already saved');
+    saved.unshift({ src: srcEl.value, arr: key(tiles), text });
+    saved = saved.slice(0, 50);
+    persist(); renderSaved(); flash('Saved');
+  };
+  $('clearSaved').onclick = () => { saved = []; persist(); renderSaved(); };
+
+  srcEl.addEventListener('input', () => rebuild());
+  srcEl.addEventListener('keydown', e => { if (e.key === 'Enter') shuffle(); });
+  caseEl.addEventListener('change', () => render({ animate: false }));
+
+  rebuild();
+  shuffle();
+  renderSaved();
+})();
+</script>
+</body>
+</html>
