@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Enigma I — step-by-step simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E7EAE3; --panel:#F8F9F6; --ink:#1E2522; --steel:#59645F; --line:#C9CFC6; --soft:#EEF0EB;
+  --lamp:#F2B01E; --lamp-off:#D6DAD3; --fwd:#B3261E; --ret:#1F5FA8; --key:#26302C;
+  --k:40px;
+  --cond:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:17px;line-height:1.55}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+:focus-visible{outline:3px solid var(--ret);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 24px 64px}
+header h1{font-family:var(--cond);font-weight:700;font-size:clamp(2.5rem,6vw,4rem);line-height:1;margin:0}
+header p{margin:8px 0 0;max-width:64ch;color:var(--steel)}
+h2{font-family:var(--cond);font-weight:600;font-size:1.5rem;line-height:1.2;margin:0 0 8px}
+.layout{display:grid;gap:24px;margin-top:24px;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);
+  grid-template-areas:"machine path" "settings message"}
+@media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"machine" "path" "message" "settings"}}
+.a-machine{grid-area:machine;align-self:start}.a-path{grid-area:path}.a-settings{grid-area:settings}.a-message{grid-area:message}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 24px 24px}
+.hint{font-size:.9rem;color:var(--steel);margin:0}
+
+/* machine */
+.machine{background:#D9DDD5;border:1px solid var(--line);border-radius:12px;padding:24px 16px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.windows{display:flex;gap:16px;align-items:flex-end}
+.win{display:flex;flex-direction:column;align-items:center;gap:4px}
+.win small{font-family:var(--cond);color:var(--steel);font-size:.95rem;line-height:1.1}
+.win .letter{width:48px;height:56px;display:grid;place-items:center;background:#fff;border:2px solid var(--steel);border-radius:4px;font-family:var(--cond);font-weight:700;font-size:2rem}
+.windows.past .letter{background:var(--soft);border-style:dashed;color:var(--steel)}
+.win button{width:48px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:4px;line-height:1}
+.win button:hover{background:#fff}
+.status{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:center;font-family:var(--cond);font-size:1.05rem;color:var(--steel);min-height:32px}
+.status strong{color:var(--ink);font-weight:600;letter-spacing:.06em}
+.link{background:none;border:none;padding:4px 0;color:var(--ret);text-decoration:underline;text-underline-offset:3px;font-family:var(--cond);font-size:1.05rem}
+.rows{display:flex;flex-direction:column;gap:8px;align-items:center}
+.row{display:flex;gap:8px}
+.lamp,.key{width:var(--k);height:var(--k);border-radius:50%;display:grid;place-items:center;font-family:var(--cond);font-weight:600;font-size:1.25rem;flex:none}
+.lamp{background:var(--lamp-off);color:#8A928C;transition:background .12s,box-shadow .12s}
+.lamp.on{background:var(--lamp);color:var(--ink);box-shadow:0 0 0 4px rgba(242,176,30,.35),0 0 18px rgba(242,176,30,.8)}
+.key{background:var(--key);color:#F4F5F1;border:3px solid #7C8680;box-shadow:0 3px 0 #0F1412;padding:0}
+.key:active,.key.down{transform:translateY(2px);box-shadow:0 1px 0 #0F1412}
+.key.pulse{animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 3px 0 #0F1412,0 0 0 0 rgba(242,176,30,.0)}50%{box-shadow:0 3px 0 #0F1412,0 0 0 7px rgba(242,176,30,.75)}}
+@media (max-width:520px){
+  :root{--k:clamp(28px,calc((100vw - 88px) / 9),40px)}
+  .wrap{padding:16px 12px 48px}.machine{padding:16px 8px}.row{gap:4px}.panel{padding:16px}
+  .lamp,.key{font-size:1.05rem}
+}
+
+/* signal path */
+.svgbox{overflow-x:auto;margin:0 -8px}
+svg{display:block;width:100%;height:auto;min-width:520px}
+#svg .seg{transition:opacity .15s}
+#svg.focus .seg{opacity:.15}
+#svg.focus .seg.hi{opacity:1;stroke-width:4}
+.legend{display:flex;gap:16px;font-size:.9rem;color:var(--steel);margin:8px 0 0;flex-wrap:wrap}
+.legend span::before{content:"";display:inline-block;width:24px;height:0;vertical-align:middle;margin-right:8px;border-top:3px solid}
+.legend .lf::before{border-color:var(--fwd)}
+.legend .lr::before{border-top-style:dashed;border-color:var(--ret)}
+.player{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 8px}
+.player .count{font-family:var(--cond);color:var(--steel);margin-left:auto}
+.stepsbox{max-height:340px;overflow-y:auto;position:relative;border-top:1px solid var(--line)}
+.steps{list-style:none;margin:0;padding:0}
+.steps li{border-bottom:1px solid var(--line)}
+.stepbtn{display:block;width:100%;text-align:left;background:none;border:none;padding:8px 8px 8px 48px;position:relative;border-radius:4px}
+.stepbtn::before{content:attr(data-n);position:absolute;left:8px;top:8px;width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-family:var(--cond);font-weight:600}
+.steps li.f .stepbtn::before{background:var(--fwd)}
+.steps li.r .stepbtn::before{background:#fff;color:var(--ret);border:2px dashed var(--ret)}
+.steps li.future .stepbtn{opacity:.4}
+.steps li.cur .stepbtn{background:#fff;box-shadow:inset 3px 0 0 var(--ink)}
+.steps li.hl .stepbtn{background:var(--soft)}
+.stepbtn b{font-family:var(--cond);font-weight:600;font-size:1.15rem}
+.stepbtn span.t{display:block;font-size:.98rem;margin-top:2px}
+.math{font-family:var(--cond);font-size:1.05rem;background:var(--soft);border-radius:4px;padding:0 8px;display:inline-block;margin-top:4px}
+.empty{color:var(--steel);font-style:italic;padding:8px 0}
+
+/* buttons, fields */
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font-family:var(--cond);font-weight:600;font-size:1.05rem;min-height:40px;padding:4px 16px;border-radius:4px;border:1px solid var(--steel);background:#fff}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn:not(:disabled):hover{filter:brightness(.94)}
+label,.lbl{display:block;font-family:var(--cond);font-size:1.05rem;color:var(--steel);margin-bottom:4px}
+select,input[type=text],textarea{background:#fff;border:1px solid var(--line);border-radius:4px;padding:4px 8px;width:100%;min-height:36px}
+.field{margin-bottom:16px}
+.err{color:var(--fwd);font-size:.9rem;min-height:1.4em;margin:4px 0 0}
+.rotorset{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:8px 8px;align-items:center;margin-bottom:16px}
+.rotorset .h{font-family:var(--cond);color:var(--steel);font-size:1rem}
+
+/* plugboard */
+.plugboard{display:flex;flex-direction:column;gap:4px;align-items:center;background:#D9DDD5;border-radius:8px;padding:8px;margin-bottom:8px}
+.plugboard .row{gap:4px}
+.sock{width:36px;height:44px;border-radius:4px;border:1px solid #9AA39C;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--cond);font-weight:600;font-size:1.05rem;line-height:1;padding:0}
+.sock small{font-size:.8rem;font-weight:500;color:var(--steel);height:.9rem;margin-top:2px}
+.sock.pending{outline:3px solid var(--ret);outline-offset:1px}
+@media (max-width:520px){.sock{width:calc((100vw - 104px) / 9);max-width:36px}}
+
+/* tape */
+.tape{display:flex;flex-wrap:wrap;gap:16px;min-height:56px;align-items:flex-start;margin-bottom:16px}
+.group{display:flex;gap:0}
+.cell{display:flex;flex-direction:column;align-items:center;min-width:24px;padding:2px 4px;border-radius:4px;font-family:var(--cond);font-size:1.25rem;line-height:1.2;border:1px solid transparent;background:none}
+.cell .o{font-weight:700;color:var(--fwd)}
+.cell:hover{background:var(--soft)}
+.cell.sel{border-color:var(--ink);background:#fff}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;border-radius:8px;padding:8px 8px 8px 16px;display:flex;gap:16px;align-items:center;box-shadow:0 2px 4px rgba(0,0,0,.2),0 8px 24px rgba(0,0,0,.18);max-width:calc(100% - 32px);font-size:.95rem;z-index:10}
+.toast[hidden]{display:none}
+.toast button{background:#fff;color:var(--ink);border:none;border-radius:4px;font-family:var(--cond);font-weight:600;font-size:1.05rem;min-height:36px;padding:0 16px}
+.about{max-width:70ch;margin-top:32px;color:var(--steel);font-size:.95rem}
+@media (prefers-reduced-motion:reduce){.lamp,#svg .seg{transition:none}.key.pulse{animation:none;box-shadow:0 3px 0 #0F1412,0 0 0 5px rgba(242,176,30,.75)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Enigma I</h1>
+  <p>Press a key and follow the current through the plugboard, three rotors and the reflector, back to a lamp. Decoding is the same operation: reset to the same start position and type the ciphertext.</p>
+</header>
+
+<main class="layout">
+  <section class="machine a-machine" aria-label="Enigma machine">
+    <div class="windows" id="windows"></div>
+    <div class="status" id="status"></div>
+    <div class="rows" id="lamps" aria-label="Lampboard"></div>
+    <div class="rows" id="keys" aria-label="Keyboard"></div>
+    <p class="hint" id="keyHint">Click a key or type on your keyboard.</p>
+    <div class="sr" aria-live="polite" id="live"></div>
+  </section>
+
+  <section class="panel a-path" aria-label="Signal path">
+    <h2 id="pathTitle">Signal path</h2>
+    <div class="svgbox"><svg id="svg" viewBox="0 0 680 470" role="img" aria-labelledby="pathTitle"></svg></div>
+    <div class="legend"><span class="lf">Forward, key to reflector</span><span class="lr">Return, reflector to lamp</span></div>
+    <div class="player">
+      <button class="btn" id="prevBtn" aria-label="Previous step">Previous</button>
+      <button class="btn primary" id="playBtn">Play</button>
+      <button class="btn" id="nextBtn" aria-label="Next step">Next</button>
+      <button class="btn" id="allBtn">Show all</button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="stepsbox" id="stepsbox"><ol class="steps" id="steps"></ol></div>
+  </section>
+
+  <section class="panel a-message" aria-label="Message">
+    <h2>Message</h2>
+    <p class="hint" style="margin-bottom:8px">Plain letter on top, cipher letter below. Select a letter to inspect its path.</p>
+    <div class="tape" id="tape"></div>
+    <div class="field">
+      <label for="batch">Type or paste text (non-letters are skipped)</label>
+      <textarea id="batch" rows="2" spellcheck="false">Hello World</textarea>
+      <p class="err" id="batchErr"></p>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="runBtn">Encode text</button>
+      <button class="btn" id="decodeBtn">Decode the output</button>
+      <button class="btn" id="copyBtn">Copy output</button>
+      <button class="btn" id="resetBtn">Reset to start</button>
+    </div>
+  </section>
+
+  <section class="panel a-settings" aria-label="Settings">
+    <h2>Daily key settings</h2>
+    <div class="rotorset" id="rotorset">
+      <span></span><span class="h">Rotor</span><span class="h">Ring</span><span class="h">Start</span>
+    </div>
+    <div class="field">
+      <label for="refl">Reflector</label>
+      <select id="refl"><option value="B">UKW-B</option><option value="C">UKW-C</option></select>
+    </div>
+    <div class="field">
+      <span class="lbl" id="pbLabel">Plugboard: click two letters to connect them, click a connected letter to unplug</span>
+      <div class="plugboard" id="plugboard" role="group" aria-labelledby="pbLabel"></div>
+      <label for="plugs">Or type pairs</label>
+      <input type="text" id="plugs" placeholder="e.g. AR GK OX" autocomplete="off" spellcheck="false">
+      <p class="err" id="plugErr"></p>
+    </div>
+  </section>
+</main>
+
+<p class="about">Models the three-rotor Wehrmacht Enigma I with rotors I–V, reflectors B and C, ring settings and plugboard, including the middle rotor's double step. The defaults (I-II-III, UKW-B, rings AAA, start AAA) turn HELLOWORLD into ILBDA AMTAZ, matching the historical reference.</p>
+</div>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button id="undoBtn">Undo</button></div>
+
+<script>
+(() => {
+const AB = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const ix = c => AB.indexOf(c);
+const ch = i => AB[((i % 26) + 26) % 26];
+const ROTORS = {
+  I:   {w:'EKMFLGDQVZNTOWYHXUSPAIBRCJ', n:'Q'},
+  II:  {w:'AJDKSIRUXBLHWTMCQGZNPYFVOE', n:'E'},
+  III: {w:'BDFHJLCPRTXVZNYEIWGAKMUSQO', n:'V'},
+  IV:  {w:'ESOVPZJAYQUIRHXLNFTGKDCMWB', n:'J'},
+  V:   {w:'VZBRGITYUPSDNHLXAWMJQOFECK', n:'Z'},
+};
+const REFL = {B:'YRUHQSLDPXNGOKMIEBFZCWVJAT', C:'FVPJIAOYEDRZXWGCTKUQSBNMHL'};
+const SLOT = ['left','middle','right'];
+const LAYOUT = ['QWERTZUIO','ASDFGHJK','PYXCVBNML'];
+const LAST = 9; // last step index (0 = rotors advance, 9 = plugboard out + lamp)
+
+const S = {rotors:['I','II','III'], rings:[0,0,0], start:[0,0,0], pos:[0,0,0], refl:'B', plugs:{}, tape:[], sel:-1, step:LAST, pressed:false};
+const $ = id => document.getElementById(id);
+const clone = o => JSON.parse(JSON.stringify(o));
+const word = p => p.map(ch).join('');
+
+// ---------- engine ----------
+function press(letter){
+  const before = S.pos.slice();
+  const nM = ix(ROTORS[S.rotors[1]].n), nR = ix(ROTORS[S.rotors[2]].n);
+  let why;
+  if (S.pos[1] === nM){ S.pos[0]++; S.pos[1]++; why = 'double'; }
+  else if (S.pos[2] === nR){ S.pos[1]++; why = 'carry'; }
+  S.pos[2]++;
+  S.pos = S.pos.map(p => p % 26);
+  const pos = S.pos.slice(), st = [];
+  let c = ix(letter);
+  let p = S.plugs[c] ?? c; st.push({k:'plug', d:'in', a:c, b:p}); c = p;
+  for (const i of [2,1,0]){
+    const sh = pos[i] - S.rings[i], w8 = ROTORS[S.rotors[i]].w;
+    const e = (c + sh + 26) % 26, w = ix(w8[e]), o = (w - sh + 26) % 26;
+    st.push({k:'rot', d:'f', i, a:c, b:o, sh, e, w}); c = o;
+  }
+  const rf = ix(REFL[S.refl][c]); st.push({k:'ukw', a:c, b:rf}); c = rf;
+  for (const i of [0,1,2]){
+    const sh = pos[i] - S.rings[i], w8 = ROTORS[S.rotors[i]].w;
+    const e = (c + sh + 26) % 26, w = w8.indexOf(AB[e]), o = (w - sh + 26) % 26;
+    st.push({k:'rot', d:'r', i, a:c, b:o, sh, e, w}); c = o;
+  }
+  p = S.plugs[c] ?? c; st.push({k:'plug', d:'out', a:c, b:p}); c = p;
+  S.tape.push({inp:letter, out:AB[c], before, after:pos, why, st,
+               cfg:{rotors:S.rotors.slice(), rings:S.rings.slice(), refl:S.refl}});
+  S.sel = S.tape.length - 1; S.step = LAST;
+}
+
+// ---------- settings with undo ----------
+let undoSnap = null, toastTimer = null;
+function changeSettings(fn){
+  stopPlay();
+  const snap = clone(S), had = S.tape.length > 0;
+  fn();
+  S.pos = S.start.slice(); S.tape = []; S.sel = -1; S.step = LAST;
+  syncSettingsUI(); render();
+  if (had){
+    if (!undoSnap) undoSnap = snap; // keep the state from before the first of several quick changes
+    $('toastMsg').textContent = 'Settings changed, so the message was cleared.';
+    $('toast').hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, 8000);
+  }
+}
+function hideToast(){ $('toast').hidden = true; undoSnap = null; }
+$('undoBtn').onclick = () => {
+  if (!undoSnap) return;
+  Object.assign(S, undoSnap); hideToast();
+  syncSettingsUI(true); render();
+};
+
+// ---------- plugboard ----------
+function parsePlugs(txt){
+  const letters = txt.toUpperCase().replace(/[^A-Z]/g,'');
+  const map = {}, seen = new Set();
+  const full = letters.length - letters.length % 2;
+  for (let i = 0; i < full; i += 2){
+    const a = letters[i], b = letters[i+1];
+    if (a === b) return {err:`${a} can't be cabled to itself.`};
+    for (const l of [a,b]){ if (seen.has(l)) return {err:`${l} is used twice; each letter takes one cable.`}; seen.add(l); }
+    map[ix(a)] = ix(b); map[ix(b)] = ix(a);
+  }
+  if (letters.length % 2){
+    const l = letters[letters.length-1];
+    if (seen.has(l)) return {err:`${l} is used twice; each letter takes one cable.`};
+    return {map, partial:l};
+  }
+  return {map};
+}
+const pairList = m => Object.keys(m).map(Number).filter(a => a < m[a]).sort((a,b) => a-b).map(a => [a, m[a]]);
+const pairsText = m => pairList(m).map(([a,b]) => AB[a]+AB[b]).join(' ');
+const sameMap = (a,b) => pairsText(a) === pairsText(b);
+
+$('plugs').addEventListener('input', e => {
+  const r = parsePlugs(e.target.value);
+  if (r.err){ $('plugErr').textContent = r.err; return; }
+  $('plugErr').textContent = '';
+  if (!sameMap(r.map, S.plugs)) changeSettings(() => { S.plugs = r.map; });
+});
+$('plugs').addEventListener('blur', e => {
+  const r = parsePlugs(e.target.value);
+  if (r.partial) $('plugErr').textContent = `${r.partial} needs a partner letter.`;
+  else if (!r.err) e.target.value = pairsText(S.plugs);
+});
+
+let pending = null;
+$('plugboard').addEventListener('click', e => {
+  const b = e.target.closest('.sock'); if (!b) return;
+  const l = ix(b.dataset.l);
+  if (S.plugs[l] !== undefined){
+    const o = S.plugs[l]; pending = null;
+    changeSettings(() => { const m = {...S.plugs}; delete m[l]; delete m[o]; S.plugs = m; });
+  } else if (pending === null){ pending = l; renderPlugboard(); }
+  else if (pending === l){ pending = null; renderPlugboard(); }
+  else { const a = pending; pending = null; changeSettings(() => { S.plugs = {...S.plugs, [a]:l, [l]:a}; }); }
+});
+function renderPlugboard(){
+  const pairs = pairList(S.plugs), hue = {};
+  pairs.forEach(([a,b], n) => { hue[a] = hue[b] = (n * 137) % 360; });
+  $('plugboard').innerHTML = LAYOUT.map(r => `<div class="row">${[...r].map(L => {
+    const i = ix(L), p = S.plugs[i], on = p !== undefined;
+    const bg = on ? `style="background:hsl(${hue[i]} 70% 88%);border-color:hsl(${hue[i]} 40% 55%)"` : '';
+    const lab = on ? `${L}, cabled to ${AB[p]}` : pending === i ? `${L}, selected` : `${L}, free`;
+    return `<button class="sock${pending===i?' pending':''}" data-l="${L}" ${bg} aria-label="${lab}">${L}<small>${on?AB[p]:''}</small></button>`;
+  }).join('')}</div>`).join('');
+  if (document.activeElement !== $('plugs')) $('plugs').value = pairsText(S.plugs);
+}
+
+// ---------- settings UI ----------
+const opts = (list, sel) => list.map(v => `<option value="${v}"${v===sel?' selected':''}>${v}</option>`).join('');
+function syncSettingsUI(force){
+  const box = $('rotorset');
+  box.querySelectorAll('.dyn').forEach(n => n.remove());
+  SLOT.forEach((name, i) => {
+    const lab = document.createElement('span'); lab.className = 'h dyn'; lab.textContent = name[0].toUpperCase()+name.slice(1);
+    box.append(lab);
+    const mk = (kind, list, val, label) => {
+      const s = document.createElement('select'); s.className = 'dyn'; s.setAttribute('aria-label', `${name} rotor ${label}`);
+      s.innerHTML = opts(list, val);
+      s.onchange = () => changeSettings(() => {
+        if (kind === 'rotor'){
+          const other = S.rotors.indexOf(s.value);
+          if (other !== -1 && other !== i) S.rotors[other] = S.rotors[i]; // each rotor exists once: swap
+          S.rotors[i] = s.value;
+        } else if (kind === 'ring') S.rings[i] = ix(s.value);
+        else S.start[i] = ix(s.value);
+      });
+      box.append(s);
+    };
+    mk('rotor', Object.keys(ROTORS), S.rotors[i], 'type');
+    mk('ring', [...AB], ch(S.rings[i]), 'ring setting');
+    mk('start', [...AB], ch(S.start[i]), 'start position');
+  });
+  $('refl').value = S.refl;
+  if (force){ $('plugs').value = pairsText(S.plugs); $('plugErr').textContent = ''; }
+}
+$('refl').onchange = e => changeSettings(() => { S.refl = e.target.value; });
+
+// ---------- machine ----------
+function buildBoards(){
+  $('lamps').innerHTML = LAYOUT.map(r => `<div class="row">${[...r].map(l => `<div class="lamp" data-l="${l}">${l}</div>`).join('')}</div>`).join('');
+  $('keys').innerHTML = LAYOUT.map(r => `<div class="row">${[...r].map(l => `<button class="key" data-k="${l}" aria-label="Key ${l}">${l}</button>`).join('')}</div>`).join('');
+  $('keys').addEventListener('click', e => { const k = e.target.closest('.key'); if (k) typeKey(k.dataset.k); });
+}
+function typeKey(l){
+  stopPlay(); press(l); S.pressed = true;
+  const r = S.tape[S.sel];
+  $('live').textContent = `${l} lights ${r.out}. Rotors now at ${word(r.after)}.`;
+  render();
+  const k = document.querySelector(`.key[data-k="${l}"]`);
+  if (k){ k.classList.add('down'); setTimeout(() => k.classList.remove('down'), 120); }
+}
+const inspecting = () => S.sel !== -1 && S.sel !== S.tape.length - 1;
+
+function renderWindows(){
+  const past = inspecting(), shown = past ? S.tape[S.sel].after : S.pos;
+  const w = $('windows'); w.classList.toggle('past', past);
+  w.innerHTML = SLOT.map((n,i) => `
+    <div class="win">
+      <small>${S.rotors[i]}</small>
+      <button data-i="${i}" data-d="1" aria-label="Turn ${n} rotor forward">▲</button>
+      <div class="letter" aria-label="${n} rotor shows ${ch(shown[i])}">${ch(shown[i])}</div>
+      <button data-i="${i}" data-d="-1" aria-label="Turn ${n} rotor back">▼</button>
+      <small>${n}</small>
+    </div>`).join('');
+  const atStart = word(S.pos) === word(S.start);
+  $('status').innerHTML = past
+    ? `<span>Showing letter ${S.sel+1}, rotors at <strong>${word(shown)}</strong></span><button class="link" id="liveBtn">Back to latest</button>`
+    : `<span>Start <strong>${word(S.start)}</strong></span><span>Now <strong>${word(S.pos)}</strong></span>${atStart ? '' : '<button class="link" id="setStartBtn">Set as start</button>'}`;
+}
+$('windows').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (inspecting()) S.sel = S.tape.length - 1;
+  const i = +b.dataset.i; S.pos[i] = (S.pos[i] + +b.dataset.d + 26) % 26;
+  render();
+});
+$('status').addEventListener('click', e => {
+  if (e.target.id === 'liveBtn'){ stopPlay(); S.sel = S.tape.length - 1; S.step = LAST; render(); }
+  if (e.target.id === 'setStartBtn') changeSettings(() => { S.start = S.pos.slice(); });
+});
+
+function renderLamps(){
+  const rec = S.tape[S.sel], lit = rec && S.step >= LAST ? rec.out : null;
+  document.querySelectorAll('.lamp').forEach(n => n.classList.toggle('on', n.dataset.l === lit));
+  document.querySelectorAll('.key').forEach(n => n.classList.toggle('pulse', !S.pressed && !S.tape.length && n.dataset.k === 'A'));
+  $('keyHint').textContent = !S.pressed && !S.tape.length ? 'Try pressing A — click it or use your keyboard.' : 'Click a key or type on your keyboard.';
+}
+
+// ---------- tape ----------
+function renderTape(){
+  const t = $('tape');
+  if (!S.tape.length){ t.innerHTML = '<span class="empty">Nothing typed yet. Press a key, or encode the text below.</span>'; return; }
+  let html = '';
+  for (let g = 0; g < S.tape.length; g += 5){
+    html += '<div class="group">' + S.tape.slice(g, g+5).map((r,j) =>
+      `<button class="cell${g+j===S.sel?' sel':''}" data-n="${g+j}" aria-label="Letter ${g+j+1}: ${r.inp} to ${r.out}"><span>${r.inp}</span><span class="o">${r.out}</span></button>`).join('') + '</div>';
+  }
+  t.innerHTML = html;
+}
+$('tape').addEventListener('click', e => {
+  const c = e.target.closest('.cell'); if (!c) return;
+  stopPlay(); S.sel = +c.dataset.n; S.step = LAST; render();
+});
+
+// ---------- step text ----------
+function stepText(rec, s){
+  const L = ch;
+  if (s.k === 'plug'){
+    const pre = s.d === 'in' ? `Key ${L(s.a)} is pressed. ` : '';
+    const body = s.a === s.b ? `${pre}${L(s.a)} has no cable, so it passes through unchanged.`
+                             : `${pre}${L(s.a)} is cabled to ${L(s.b)}, so the current continues as ${L(s.b)}.`;
+    return {cls:s.d==='in'?'f':'r', title: s.d==='in' ? 'Plugboard, going in' : 'Plugboard, going out',
+            body: body + (s.d==='out' ? ` Lamp ${L(s.b)} lights up.` : ''), math:`${L(s.a)} → ${L(s.b)}`};
+  }
+  if (s.k === 'ukw') return {cls:'f', title:`Reflector UKW-${rec.cfg.refl}`,
+    body:`The reflector sends ${L(s.a)} back as ${L(s.b)}. It pairs letters and never maps one to itself, which is why Enigma never encodes a letter as itself and why the same settings decode.`,
+    math:`${L(s.a)} → ${L(s.b)}`};
+  const fwd = s.d === 'f', i = s.i, rg = rec.cfg.rings[i];
+  const sign = s.sh >= 0 ? `+${s.sh}` : `${s.sh}`;
+  return {cls: fwd ? 'f' : 'r',
+    title:`${fwd ? 'Forward' : 'Back'} through rotor ${rec.cfg.rotors[i]} (${SLOT[i]})`,
+    body:`The rotor shows ${L(rec.after[i])}${rg ? `, ring ${L(rg)}` : ''}, so its wiring is offset by ${sign} (position − ring). ${L(s.a)} meets contact ${L(s.e)}, the ${fwd ? '' : 'reverse '}wire leads to ${L(s.w)}, and removing the offset gives ${L(s.b)}.`,
+    math:`${L(s.a)} ${sign} = ${L(s.e)} → ${fwd?'wire':'wire⁻¹'} → ${L(s.w)} ${s.sh>=0?'−':'+'}${Math.abs(s.sh)} = ${L(s.b)}`};
+}
+
+// ---------- detail: steps + diagram ----------
+function renderDetail(){
+  const rec = S.tape[S.sel], list = $('steps');
+  ['prevBtn','playBtn','nextBtn','allBtn'].forEach(id => $(id).disabled = !rec);
+  if (!rec){
+    $('pathTitle').textContent = 'Signal path';
+    $('count').textContent = '';
+    list.innerHTML = '<li class="empty" style="border:none">Press a key to see what happens inside the machine.</li>';
+    drawSvg(null); renderLamps(); return;
+  }
+  $('pathTitle').textContent = `Signal path: ${rec.inp} becomes ${rec.out}` + (S.tape.length > 1 ? ` (letter ${S.sel+1})` : '');
+  $('prevBtn').disabled = S.step <= 0;
+  $('nextBtn').disabled = S.step >= LAST;
+  $('allBtn').disabled = S.step >= LAST && !timer;
+  $('playBtn').textContent = timer ? 'Stop' : 'Play';
+  $('count').textContent = `Step ${S.step+1} of ${LAST+1}`;
+  let why = 'The right rotor always advances one place before the current flows.';
+  if (rec.why === 'carry') why += ` It was at its notch letter (${ROTORS[rec.cfg.rotors[2]].n}), so it also pushed the middle rotor one place.`;
+  if (rec.why === 'double') why += ` The middle rotor was at its own notch (${ROTORS[rec.cfg.rotors[1]].n}), so it steps again and takes the left rotor with it: the double step.`;
+  const items = [{cls:'', title:'Rotors advance', body:why, math:`${word(rec.before)} → ${word(rec.after)}`}, ...rec.st.map(s => stepText(rec, s))];
+  list.innerHTML = items.map((it, k) => {
+    const state = k > S.step ? ' future' : (k === S.step && S.step < LAST ? ' cur' : '');
+    return `<li class="${it.cls}${state}" data-k="${k}"><button class="stepbtn" data-n="${k+1}" data-k="${k}"><b>${it.title}</b><span class="t">${it.body}</span><span class="math">${it.math}</span></button></li>`;
+  }).join('');
+  if (S.step < LAST){
+    const cur = list.querySelector('.cur'), box = $('stepsbox');
+    if (cur && (cur.offsetTop < box.scrollTop || cur.offsetTop + cur.offsetHeight > box.scrollTop + box.clientHeight))
+      box.scrollTop = cur.offsetTop - 8;
+  }
+  drawSvg(rec); renderLamps();
+}
+$('steps').addEventListener('click', e => { const b = e.target.closest('.stepbtn'); if (b){ stopPlay(); S.step = +b.dataset.k; renderDetail(); } });
+
+// playback
+let timer = null;
+function stopPlay(){ if (timer){ clearInterval(timer); timer = null; } }
+$('playBtn').onclick = () => {
+  if (timer){ stopPlay(); renderDetail(); return; }
+  S.step = 0; timer = setInterval(() => {
+    if (S.step >= LAST){ stopPlay(); } else S.step++;
+    renderDetail();
+  }, 900);
+  renderDetail();
+};
+$('prevBtn').onclick = () => { stopPlay(); S.step = Math.max(0, S.step-1); renderDetail(); };
+$('nextBtn').onclick = () => { stopPlay(); S.step = Math.min(LAST, S.step+1); renderDetail(); };
+$('allBtn').onclick = () => { stopPlay(); S.step = LAST; renderDetail(); };
+
+// hover linking between steps and diagram segments
+function hl(k){
+  const svg = $('svg'), on = k != null && svg.querySelector(`.seg[data-k="${k}"]`);
+  svg.classList.toggle('focus', !!on);
+  svg.querySelectorAll('.seg').forEach(p => p.classList.toggle('hi', on && p.dataset.k == k));
+  $('steps').querySelectorAll('li').forEach(li => li.classList.toggle('hl', k != null && li.dataset.k == k));
+}
+$('steps').addEventListener('mouseover', e => { const li = e.target.closest('li[data-k]'); hl(li ? li.dataset.k : null); });
+$('steps').addEventListener('focusin', e => { const li = e.target.closest('li[data-k]'); hl(li ? li.dataset.k : null); });
+$('steps').addEventListener('mouseleave', () => hl(null));
+$('steps').addEventListener('focusout', () => hl(null));
+$('svg').addEventListener('mouseover', e => { const p = e.target.closest('.seg'); hl(p ? p.dataset.k : null); });
+$('svg').addEventListener('mouseleave', () => hl(null));
+
+// ---------- SVG: laid out like the machine, reflector left, keyboard right ----------
+const G = {top:56, rh:15, keyX:620, labX:644, o:3,
+  ukw:{x:24,w:48},
+  comps:[{x:500,w:64},{x:376,w:64},{x:252,w:64},{x:128,w:64}]}; // plugboard, right, middle, left
+const GAPS = [592, 470, 346, 222, 100];
+const Y = i => G.top + i * G.rh + G.rh/2;
+const FONT = 'font-family="Barlow Condensed,Arial Narrow,sans-serif"';
+
+function segD(k, s){
+  const C = G.comps, u = G.ukw, o = G.o;
+  if (k <= 4){
+    const c = C[k-1], px = k === 1 ? G.keyX : C[k-2].x;
+    return `M${px} ${Y(s[k-1])} L${c.x+c.w} ${Y(s[k-1])} L${c.x} ${Y(s[k])}`;
+  }
+  if (k === 5){
+    const tx = u.x + 12;
+    return `M${C[3].x} ${Y(s[4])} L${tx} ${Y(s[4])} L${tx} ${Y(s[5])} L${u.x+u.w} ${Y(s[5])}`;
+  }
+  const c = C[9-k], p = k === 6 ? u.x + u.w : C[10-k].x + C[10-k].w;
+  let d = `M${p} ${Y(s[k-1])+o} L${c.x} ${Y(s[k-1])+o} L${c.x+c.w} ${Y(s[k])+o}`;
+  if (k === 9) d += ` L${G.keyX} ${Y(s[9])+o}`;
+  return d;
+}
+
+function drawSvg(rec){
+  const cfg = rec ? rec.cfg : {rotors:S.rotors, refl:S.refl};
+  const step = S.step;
+  let h = `<defs>
+    <marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#B3261E"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1F5FA8"/></marker></defs>`;
+  for (let i = 0; i < 26; i++)
+    h += `<text x="${G.labX}" y="${Y(i)+4}" ${FONT} font-size="12" fill="#8A928C" text-anchor="middle">${AB[i]}</text>`;
+  h += `<text x="${G.labX}" y="${G.top-10}" ${FONT} font-size="12" fill="#59645F" text-anchor="middle">key/lamp</text>`;
+  const boxes = [
+    {...G.ukw, lab:`UKW-${cfg.refl}`, sub:'reflector', edges:1},
+    {...G.comps[3], lab:cfg.rotors[0], slot:0},
+    {...G.comps[2], lab:cfg.rotors[1], slot:1},
+    {...G.comps[1], lab:cfg.rotors[2], slot:2},
+    {...G.comps[0], lab:'Plugboard', sub:''}];
+  boxes.forEach(b => {
+    let sub = b.sub ?? '', moved = false;
+    if (b.slot !== undefined){
+      sub = SLOT[b.slot] + (rec ? `, at ${ch(rec.after[b.slot])}` : '');
+      moved = rec && step === 0 && rec.before[b.slot] !== rec.after[b.slot];
+    }
+    h += `<rect x="${b.x}" y="${G.top-4}" width="${b.w}" height="${26*G.rh+8}" rx="4" fill="#EEF0EB" stroke="#C9CFC6"/>`;
+    h += `<text x="${b.x+b.w/2}" y="${G.top-24}" ${FONT} font-weight="600" font-size="15" fill="#1E2522" text-anchor="middle">${b.lab}</text>`;
+    if (sub) h += `<text x="${b.x+b.w/2}" y="${G.top-10}" ${FONT} font-size="12" ${moved ? 'fill="#B3261E" font-weight="700"' : 'fill="#59645F"'} text-anchor="middle">${sub}</text>`;
+    for (let i = 0; i < 26; i++){
+      h += `<line x1="${b.x+b.w-4}" x2="${b.x+b.w}" y1="${Y(i)}" y2="${Y(i)}" stroke="#B5BCB3"/>`;
+      if (!b.edges) h += `<line x1="${b.x}" x2="${b.x+4}" y1="${Y(i)}" y2="${Y(i)}" stroke="#B5BCB3"/>`;
+    }
+  });
+  if (rec){
+    const s = [ix(rec.inp), ...rec.st.map(x => x.b)]; // s[0] key … s[9] lamp
+    for (let k = 1; k <= Math.min(step, LAST); k++){
+      const fw = k <= 5;
+      h += `<path class="seg" data-k="${k}" d="${segD(k, s)}" fill="none" stroke="${fw ? '#B3261E' : '#1F5FA8'}" stroke-width="2.4" stroke-linejoin="round" ${fw ? '' : 'stroke-dasharray="6 4"'} marker-end="url(#${fw ? 'af' : 'ar'})"><title>Step ${k+1}</title></path>`;
+    }
+    const pill = (x, y, l, col, dashed) => `<rect x="${x-9}" y="${y-8}" width="18" height="16" rx="3" fill="#fff" stroke="${col}" ${dashed ? 'stroke-dasharray="3 2"' : ''}/><text x="${x}" y="${y+4}" ${FONT} font-weight="700" font-size="12" fill="${col}" text-anchor="middle">${l}</text>`;
+    GAPS.forEach((gx, j) => {
+      if (step >= j) h += pill(gx+10, Y(s[j]), AB[s[j]], '#B3261E');
+      if (step >= 9-j) h += pill(gx-10, Y(s[9-j])+G.o, AB[s[9-j]], '#1F5FA8', true);
+    });
+    h += `<circle cx="${G.labX}" cy="${Y(s[0])}" r="9" fill="none" stroke="#B3261E" stroke-width="2"/>`;
+    if (step >= LAST) h += `<circle cx="${G.labX}" cy="${Y(s[9])}" r="9" fill="#F2B01E" fill-opacity=".55" stroke="#1F5FA8" stroke-width="2"/>`;
+  }
+  $('svg').innerHTML = h;
+}
+
+// ---------- message controls ----------
+function renderButtons(){
+  const has = S.tape.length > 0;
+  $('decodeBtn').disabled = !has; $('copyBtn').disabled = !has;
+  $('resetBtn').disabled = !has && word(S.pos) === word(S.start);
+}
+$('runBtn').onclick = () => {
+  const letters = $('batch').value.toUpperCase().replace(/[^A-Z]/g,'');
+  if (!letters){ $('batchErr').textContent = 'There are no letters to encode. Type some text above.'; return; }
+  $('batchErr').textContent = ''; stopPlay();
+  for (const l of letters) press(l);
+  S.pressed = true; render();
+};
+$('batch').addEventListener('input', () => { $('batchErr').textContent = ''; });
+$('decodeBtn').onclick = () => {
+  const out = S.tape.map(r => r.out).join('');
+  if (!out) return;
+  stopPlay();
+  $('batch').value = out.replace(/(.{5})/g,'$1 ').trim();
+  S.pos = S.start.slice(); S.tape = []; S.sel = -1;
+  for (const l of out) press(l);
+  render();
+};
+$('copyBtn').onclick = async () => {
+  const out = S.tape.map(r => r.out).join('').replace(/(.{5})/g,'$1 ').trim();
+  try { await navigator.clipboard.writeText(out); $('copyBtn').textContent = 'Copied'; }
+  catch { $('copyBtn').textContent = 'Copy failed'; }
+  setTimeout(() => $('copyBtn').textContent = 'Copy output', 1400);
+};
+$('resetBtn').onclick = () => { stopPlay(); S.pos = S.start.slice(); S.tape = []; S.sel = -1; S.step = LAST; render(); };
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName)) return;
+  const l = e.key.toUpperCase();
+  if (/^[A-Z]$/.test(l)){ e.preventDefault(); typeKey(l); }
+});
+
+function render(){ renderWindows(); renderTape(); renderDetail(); renderPlugboard(); renderButtons(); }
+buildBoards(); syncSettingsUI(true); render();
+})();
+</script>
+</body>
+</html>
