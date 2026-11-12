@@ -7,46 +7,55 @@
 <style>
 :root{color-scheme:light;--bg:#f6f4ee;--card:#fff;--ink:#222;--mut:#666;--line:#ddd8cb;--acc:#1f6f4a;--bad:#b3261e}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans-serif;padding-bottom:210px}
-main{max-width:720px;margin:0 auto;padding:10px}
-h1{font-size:18px;margin:6px 0}
-section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin:10px 0}
-h2{font-size:13px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-select,input[type=number]{font:inherit;padding:5px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
-input[type=number]{width:70px}
-label{display:inline-flex;align-items:center;gap:5px;margin:3px 10px 3px 0}
-.row{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.35 system-ui,sans-serif;padding-bottom:150px}
+main{max-width:940px;margin:0 auto;padding:8px}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.bar h1{font-size:16px;margin:0 6px 0 0}
+.grid{display:grid;grid-template-columns:1fr;gap:8px;align-items:start}
+@media(min-width:760px){.grid{grid-template-columns:1.2fr 1fr}}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px}
+h2{font-size:11px;margin:0 0 5px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+h2 small{text-transform:none;letter-spacing:0;font-weight:400}
+select,input[type=number],button{font:inherit}
+select,input[type=number]{padding:3px 5px;border:1px solid var(--line);border-radius:5px;background:#fff;color:var(--ink)}
+input[type=number]{width:62px}
+button{border:1px solid var(--line);background:#fff;border-radius:5px;padding:4px 9px;cursor:pointer}
+button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
+label{display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;cursor:help}
+.row{display:flex;flex-wrap:wrap;align-items:center}
 .pal{display:grid;grid-template-columns:repeat(9,1fr);gap:3px}
-.t{border:1px solid var(--line);background:#fffdf6;border-radius:5px;padding:2px 0;font:34px/1.25 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222;text-align:center;cursor:pointer;min-width:0}
-
+.t{border:1px solid var(--line);background:#fffdf6;border-radius:4px;padding:0;font:30px/1.3 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222}
 .t:active{background:#e8e2cc}
-.chips{display:flex;flex-wrap:wrap;gap:4px;min-height:36px}
-.chip{display:inline-block;border:1px solid var(--line);background:#fffdf6;border-radius:5px;padding:0 6px;font:34px/1.25 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:3px;min-height:40px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
+.chip{display:inline-block;border:1px solid var(--line);background:#fffdf6;border-radius:4px;padding:0 4px;font:30px/1.3 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222;cursor:pointer}
 .chip.win{outline:2px solid var(--acc);background:#e6f3ec}
-.chip.meld{background:#eef0f4;cursor:default}
-.chip button{border:0;background:none;color:var(--bad);font:700 14px system-ui;cursor:pointer;padding:0 0 0 4px;vertical-align:top}
-.hint{color:var(--mut);font-size:12px;margin:4px 0}
-.seg button,.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 9px;cursor:pointer}
-.seg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
-.fl button{width:38px;padding:6px 0}
+.chip button{border:0;background:none;color:var(--bad);font:700 12px system-ui;padding:0 0 0 3px;vertical-align:top}
+.hint{color:var(--mut);font-size:12px;margin-top:3px}
+.flags{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0 6px;margin-top:4px}
+.flags label{margin:1px 0;font-size:13px}
+.fl{margin-top:4px;gap:3px}
+.fl button{width:32px;padding:3px 0}
 .fl button.on{background:#f3d98b}
+.sets label{display:inline-flex;margin:1px 10px 1px 0;font-size:13px}
+.sets .g{font:22px/1.2 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif}
 ul.pat{list-style:none;margin:0;padding:0}
-ul.pat li{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding:5px 0}
+ul.pat li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:3px 0}
+ul.pat li:last-child{border:0}
 .err{color:var(--bad);font-weight:600}
-#bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:2px solid var(--acc);padding:8px 12px;max-height:40vh;overflow:auto}
-#bar .in{max-width:720px;margin:0 auto}
-.head{font-size:20px;font-weight:700;color:var(--acc)}
-.sub{color:var(--mut)}
-.pay{display:flex;justify-content:space-between;padding:2px 0}
-.hide{display:none}
+#bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:2px solid var(--acc);padding:6px 12px;max-height:34vh;overflow:auto}
+#bar .in{max-width:940px;margin:0 auto}
+.head{font-size:19px;font-weight:700;color:var(--acc)}
+.sub{color:var(--mut);font-size:13px}
+.pay{display:flex;justify-content:space-between;padding:1px 0;font-size:13px}
+details>summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:600}
 </style>
 </head>
 <body>
 <main>
-<h1>Mahjong Scorer</h1>
-<section>
-  <h2>Ruleset</h2>
-  <select id="rs">
+<div class="bar">
+  <h1>Mahjong Scorer</h1>
+  <select id="rs" title="Scoring ruleset">
     <option value="riichi">Riichi (Japanese)</option>
     <option value="hk">Hong Kong</option>
     <option value="mcr">Chinese Official (MCR)</option>
@@ -54,48 +63,45 @@ ul.pat li{display:flex;justify-content:space-between;border-bottom:1px solid var
     <option value="cc">Chinese Classical</option>
     <option value="tw">Taiwanese (16 tiles)</option>
   </select>
-  <button class="btn" id="ex">Example hand</button>
-  <button class="btn" id="clr">Clear</button>
-</section>
+  <select id="exs" title="Load a ready-made example hand"><option value="">Examples…</option></select>
+  <button id="rnd" class="primary" title="Generate a random complete hand that scores under the current ruleset">Random</button>
+  <button id="clr" title="Clear the hand, flowers and ticks">Clear</button>
+</div>
 
-<section>
-  <h2>Pick your tiles (hand incl. winning tile; 14, +1 per kong)</h2>
-  <div class="pal" id="pal"></div>
-</section>
+<div class="grid">
+ <div class="col">
+  <section>
+    <h2>Tiles <small>– tap to add: 14 tiles (17 for Taiwanese), +1 per kong</small></h2>
+    <div class="pal" id="pal"></div>
+    <div class="chips" id="hand" title="Your hand. Tap a tile to fix it as the winning tile; × removes it."></div>
+    <div class="hint" id="cnt"></div>
+  </section>
+  <section>
+    <h2>Detected sets <small>– tick sets you called (open)</small></h2>
+    <div id="sets" class="sets hint">Complete a hand to see its sets.</div>
+  </section>
+  <section>
+    <h2>Patterns scored</h2>
+    <div id="pats"></div>
+  </section>
+ </div>
 
-<section>
-  <h2>Your hand</h2>
-  <div class="chips" id="hand"></div>
-  <div class="hint" id="cnt"></div>
-  <div class="hint">Winning tile: best one is picked automatically; tap a tile to fix it (tap again to unfix).</div>
-</section>
-
-<section><h2>Detected sets</h2><div id="sets" class="hint">Complete a hand to see its sets.</div></section>
-
-<section id="flsec">
-  <h2>Flowers &amp; seasons</h2>
-  <div class="row fl" id="fl"></div>
-</section>
-
-<section>
-  <h2>Situation</h2>
-  <div class="row">
-    <label><input type="checkbox" id="tsumo"> Self-drawn</label>
-    <label>Seat <select id="seat"><option value="0">East (dealer)</option><option value="1">South</option><option value="2">West</option><option value="3">North</option></select></label>
-    <label>Round <select id="round"><option value="0">East</option><option value="1">South</option><option value="2">West</option><option value="3">North</option></select></label>
-  </div>
-  <div class="row" id="flags"></div>
-</section>
-
-<section>
-  <h2>Options</h2>
-  <div id="opts"></div>
-</section>
-
-<section>
-  <h2>Patterns scored</h2>
-  <div id="pats"></div>
-</section>
+ <div class="col">
+  <section>
+    <h2>Situation</h2>
+    <div class="row">
+      <label title="Tick if you won by drawing the tile yourself instead of claiming a discard"><input type="checkbox" id="tsumo"> Self-drawn</label>
+      <label title="Your seat wind. East is the dealer">Seat <select id="seat"><option value="0">East</option><option value="1">South</option><option value="2">West</option><option value="3">North</option></select></label>
+      <label title="Prevailing (round) wind">Round <select id="round"><option value="0">East</option><option value="1">South</option><option value="2">West</option><option value="3">North</option></select></label>
+    </div>
+    <div class="row fl" id="fl" title="Flowers (F1-F4) and seasons (S1-S4) you hold. The number matches a seat: 1 = East ... 4 = North"></div>
+    <div class="flags" id="flags"></div>
+  </section>
+  <section>
+    <details open><summary>Options</summary><div id="opts" style="margin-top:4px"></div></details>
+  </section>
+ </div>
+</div>
 </main>
 
 <div id="bar"><div class="in" id="res">Enter a complete winning hand.</div></div>
@@ -110,53 +116,77 @@ var miss=['Mahjong','MahjongHand','MahjongRules'].filter(function(n){return type
 if(miss.length){document.getElementById('res').textContent='Missing script(s): '+miss.map(function(n){return {Mahjong:'mahjong.js',MahjongHand:'hand.js',MahjongRules:'rules.js'}[n];}).join(', ')+'. Put all .js files next to index.html.';return;}
 var H=MahjongHand,R=MahjongRules;
 var $=function(id){return document.getElementById(id);};
-var closed=[],winTile=-1,effWin=-1,flowers=[0,0,0,0,0,0,0,0],openKeys={};
-var flags={};
+var closed=[],winTile=-1,effWin=-1,flowers=[0,0,0,0,0,0,0,0],openKeys={},flags={};
+
+/* [key, label, rulesets, hint] */
 var FLAGS=[
- ['riichi','Riichi','riichi'],['dblRiichi','Double riichi','riichi'],['ippatsu','Ippatsu','riichi'],
- ['lastWall','Last tile of wall','riichi hk mcr cn cc tw'],['lastDiscard','Last discard','riichi hk mcr cn cc'],
- ['kongDraw','After a kong (replacement tile)','riichi hk mcr cn cc'],['robKong','Robbing a kong','riichi hk mcr cn cc tw'],
- ['heavenly','First draw as dealer','riichi hk cc tw'],['earthly','First turn, non-dealer','riichi hk cc tw'],
- ['fourthTile','Last of its kind (4th tile)','mcr cn'],['doubleKong','Double kong win','hk'],
- ['early','Early win (6–9 discards)','tw'],['early2','Early win (≤5 discards)','tw'],['readyOriginal','Ready on original hand','cc tw']
+ ['riichi','Riichi','riichi','Closed hand declared ready (+1 han). Only counts if you have no called melds.'],
+ ['dblRiichi','Double riichi','riichi','Riichi declared on your very first discard (+2 han instead of +1).'],
+ ['ippatsu','Ippatsu','riichi','Won within one go-round after riichi with no calls in between (+1 han).'],
+ ['lastWall','Last tile of wall','riichi hk mcr cn cc tw','Self-drawn win on the very last tile of the wall (haitei / last tile draw).'],
+ ['lastDiscard','Last discard','riichi hk mcr cn cc','Win by claiming the very last discard of the game (houtei / last tile claim).'],
+ ['kongDraw','After a kong','riichi hk mcr cn cc','Won on the replacement tile drawn after declaring a kong.'],
+ ['robKong','Robbing a kong','riichi hk mcr cn cc tw','Won on the tile another player adds to a pung to make a kong.'],
+ ['heavenly','Heavenly hand','riichi hk cc tw','Dealer wins on the initial deal, before any discard (tenhou).'],
+ ['earthly','Earthly hand','riichi hk cc tw','Non-dealer wins on the first discard/draw, before any call (chiihou / earthly hand).'],
+ ['fourthTile','Last of its kind','mcr cn','The winning tile is the 4th copy of that tile (the other three are visible on the table).'],
+ ['doubleKong','Double kong win','hk','Hong Kong: won on the replacement tile after two kongs in a row.'],
+ ['early','Early win (6-9 discards)','tw','Taiwanese: won within 6 to 9 discards.'],
+ ['early2','Early win (5 or fewer)','tw','Taiwanese: won within 5 or fewer discards.'],
+ ['readyOriginal','Ready on original hand','cc tw','Hand was ready (waiting) straight from the original deal.']
 ];
+/* [type, key, label, default/choices, hint] */
 var OPTS={
- riichi:[['n','dora','Dora',0],['n','ura','Ura dora',0],['n','aka','Red fives',0],['n','honba','Honba',0],['n','sticks','Riichi sticks',0],['c','kazoe','Kazoe yakuman (13+ han)',1],['c','kiriage','Kiriage mangan',0],['c','doubleYakuman','Double yakuman',1]],
- mcr:[['n','min','Minimum points',8]],
- hk:[['s','table','Table',[['half','Half spicy'],['full','Full spicy'],['fw','Four Winds old style']]],['n','min','Minimum faan',3],['n','limit','Limit (faan)',13],['s','discardPay','Discard pays',[['all','All'],['half','Half']]]],
- cn:[['n','min','Minimum faan',0]],
- cc:[['n','limit','Limit',1000],['c','round','Round-of-play bonus',0],['s','east','East',[['winner','Winner only'],['1','Loser 1'],['2','Loser 2'],['3','Loser 3']]],['n','l0','Loser 1 score',0],['n','l1','Loser 2 score',0],['n','l2','Loser 3 score',0]],
- tw:[['n','base','Base',0],['n','unit','Unit per tai',1],['n','limit','Limit (0 = none)',0]]
+ riichi:[['n','dora','Dora',0,'Dora tiles in your hand, +1 han each. Dora alone is not a yaku.'],['n','ura','Ura dora',0,'Ura dora under riichi, +1 han each. Only counted if riichi is ticked.'],['n','aka','Red fives',0,'Red five tiles in your hand, +1 han each.'],['n','honba','Honba',0,'Repeat counters: +300 points total per honba.'],['n','sticks','Riichi sticks',0,'Riichi sticks (1000 each) on the table, collected by the winner.'],['c','kazoe','Kazoe yakuman',1,'13+ han counts as a yakuman instead of capping at sanbaiman.'],['c','kiriage','Kiriage mangan',0,'Round 30 fu/4 han and 60 fu/3 han up to mangan.'],['c','doubleYakuman','Double yakuman',1,'Score daisuushii, 13-sided kokushi, pure chuuren and suuankou tanki as 2x yakuman.']],
+ mcr:[['n','min','Minimum points',8,'Points needed to win (flowers do not count toward it).']],
+ hk:[['s','table','Table',[['half','Half spicy'],['full','Full spicy'],['fw','Four Winds old style']],'Faan to points table: half spicy grows more slowly, full spicy doubles every faan, old style is the fixed Four Winds table.'],['n','min','Minimum faan',3,'Minimum faan needed to win.'],['n','limit','Limit (faan)',13,'Faan at which the hand reaches the limit.'],['s','discardPay','Discard pays',[['all','All'],['half','Half']],'Whether the discarder pays the full amount or half of it.']],
+ cn:[['n','min','Minimum faan',0,'Minimum faan needed to win (0 = no minimum).']],
+ cc:[['n','limit','Limit',1000,'Maximum points a hand can be worth.'],['c','round','Round-of-play bonus',0,'Apply the round-of-play bonus to payments.'],['s','east','East',[['winner','Winner only'],['1','Loser 1'],['2','Loser 2'],['3','Loser 3']],'Which player is East (pays and receives double).'],['n','l0','Loser 1 score',0,'Loser 1 current score, used to settle payments among losers.'],['n','l1','Loser 2 score',0,'Loser 2 current score.'],['n','l2','Loser 3 score',0,'Loser 3 current score.']],
+ tw:[['n','base','Base',0,'Base amount added to every payment.'],['n','unit','Unit per tai',1,'Value of one tai.'],['n','limit','Limit (0 = none)',0,'Maximum tai counted; 0 means no limit.']]
 };
 var opt={};
-function tileLabel(t){
-  var cp=t<9?0x1F007+t:t<18?0x1F019+(t-9):t<27?0x1F010+(t-18):t<31?0x1F000+(t-27):t===31?0x1F006:t===32?0x1F005:0x1F004;
-  return String.fromCodePoint(cp)+'\uFE0E';
-}
+
+/* name, tiles, self-drawn */
+var EX=[
+ ['Mixed straight','123m456p789s234s55z',1],
+ ['Tanyao + pinfu','234m567p345s678s44p',0],
+ ['Seven pairs','1133m5577p2244s66z',0,1],
+ ['Thirteen orphans','19m19p19s12345677z',0,1],
+ ['Four kongs','1111m5555p9999s2222z33z',1],
+ ['Nine gates','11123455678999m',1],
+ ['Pure double sequence flush','11223344556677m',0],
+ ['Pure straight','123456789m234p55s',1],
+ ['Big three dragons','555z666z777z234m11p',0],
+ ['All pungs','222m444p666s111z99m',1],
+ ['Big four winds','111z222z333z444z55m',0],
+ ['All terminals','111m999m111p999p11s',1],
+ ['All green','234s234s666s888s66z',1]
+];
+
+var cp=function(t){return t<9?0x1F007+t:t<18?0x1F019+(t-9):t<27?0x1F010+(t-18):t<31?0x1F000+(t-27):t===31?0x1F006:t===32?0x1F005:0x1F004;};
+function tileLabel(t){return String.fromCodePoint(cp(t))+'︎';}
 function tileName(t){return t<27?((t%9)+1)+'mps'[Math.floor(t/9)]:['East','South','West','North','White','Green','Red'][t-27];}
-function cls(t){return t<9?'m':t<18?'p':t<27?'s':'z';}
 function setsTotal(){return $('rs').value==='tw'?5:4;}
 function baseLen(){return setsTotal()===5?17:14;}
 function countOf(t){var n=0;closed.forEach(function(x){if(x===t)n++;});return n;}
+function el(tag,txt,cls){var e=document.createElement(tag);if(txt!=null)e.textContent=txt;if(cls)e.className=cls;return e;}
+
 function buildPalette(){
   var p=$('pal');p.innerHTML='';
-  for(var t=0;t<34;t++){
-    (function(t){
-      var b=document.createElement('button');
-      b.className='t '+cls(t);b.textContent=tileLabel(t);b.title=tileName(t);
-      b.onclick=function(){
-        if(countOf(t)>=4||closed.length>=baseLen()+4)return;
-        closed.push(t);closed.sort(function(a,b){return a-b;});render();
-      };
-      p.appendChild(b);
-    })(t);
-  }
+  for(var t=0;t<34;t++){(function(t){
+    var b=el('button',tileLabel(t),'t');b.title=tileName(t);
+    b.onclick=function(){
+      if(countOf(t)>=4||closed.length>=baseLen()+4)return;
+      closed.push(t);closed.sort(function(a,b){return a-b;});render();
+    };
+    p.appendChild(b);
+  })(t);}
 }
 function buildFlowers(){
   var f=$('fl');f.innerHTML='';
-  var names=['F1','F2','F3','F4','S1','S2','S3','S4'];
-  names.forEach(function(n,i){
-    var b=document.createElement('button');b.className='btn';b.textContent=n;
+  ['F1','F2','F3','F4','S1','S2','S3','S4'].forEach(function(n,i){
+    var b=el('button',n);b.title=(i<4?'Flower ':'Season ')+(i%4+1)+' ('+['East','South','West','North'][i%4]+')';
+    b.classList.toggle('on',!!flowers[i]);
     b.onclick=function(){flowers[i]=flowers[i]?0:1;b.classList.toggle('on',!!flowers[i]);calc();};
     f.appendChild(b);
   });
@@ -165,24 +195,23 @@ function buildFlags(){
   var rs=$('rs').value,box=$('flags');box.innerHTML='';
   FLAGS.forEach(function(f){
     if(f[2].split(' ').indexOf(rs)<0)return;
-    var l=document.createElement('label'),c=document.createElement('input');
-    c.type='checkbox';c.checked=!!flags[f[0]];
+    var l=el('label');l.title=f[3];var c=document.createElement('input');c.type='checkbox';c.checked=!!flags[f[0]];
     c.onchange=function(){flags[f[0]]=c.checked;calc();};
-    l.appendChild(c);l.appendChild(document.createTextNode(' '+f[1]));box.appendChild(l);
+    l.appendChild(c);l.appendChild(document.createTextNode(f[1]));box.appendChild(l);
   });
 }
 function buildOpts(){
   var rs=$('rs').value,box=$('opts');box.innerHTML='';
-  var list=OPTS[rs];
-  list.forEach(function(o){
-    var key=o[1];
-    if(!(rs+'.'+key in opt))opt[rs+'.'+key]=o[0]==='s'?o[3][0][0]:o[3];
-    var l=document.createElement('label'),el;
+  OPTS[rs].forEach(function(o){
+    var key=rs+'.'+o[1];
+    if(!(key in opt))opt[key]=o[0]==='s'?o[3][0][0]:o[3];
+    var l=el('label');l.title=o[o.length-1];
     l.appendChild(document.createTextNode(o[2]+' '));
-    if(o[0]==='n'){el=document.createElement('input');el.type='number';el.value=opt[rs+'.'+key];el.oninput=function(){opt[rs+'.'+key]=+el.value||0;calc();};}
-    else if(o[0]==='c'){el=document.createElement('input');el.type='checkbox';el.checked=!!opt[rs+'.'+key];el.onchange=function(){opt[rs+'.'+key]=el.checked?1:0;calc();};}
-    else{el=document.createElement('select');o[3].forEach(function(p){var op=document.createElement('option');op.value=p[0];op.textContent=p[1];el.appendChild(op);});el.value=opt[rs+'.'+key];el.onchange=function(){opt[rs+'.'+key]=el.value;calc();};}
-    l.appendChild(el);box.appendChild(l);
+    var e;
+    if(o[0]==='n'){e=document.createElement('input');e.type='number';e.value=opt[key];e.oninput=function(){opt[key]=+e.value||0;calc();};}
+    else if(o[0]==='c'){e=document.createElement('input');e.type='checkbox';e.checked=!!opt[key];e.onchange=function(){opt[key]=e.checked?1:0;calc();};}
+    else{e=document.createElement('select');o[3].forEach(function(p){var op=el('option',p[1]);op.value=p[0];e.appendChild(op);});e.value=opt[key];e.onchange=function(){opt[key]=e.value;calc();};}
+    l.appendChild(e);box.appendChild(l);
   });
 }
 function getOpt(){
@@ -192,18 +221,21 @@ function getOpt(){
   if(rs==='cc'){o.round=!!o.round;o.losers=[o.l0||0,o.l1||0,o.l2||0];}
   return o;
 }
+function getCtx(){
+  var o=getOpt();
+  return {o:o,ctx:{tsumo:$('tsumo').checked,seat:+$('seat').value,round:+$('round').value,flowers:flowers.slice(),flags:flags,dora:o.dora||0,ura:o.ura||0,aka:o.aka||0,honba:o.honba||0,sticks:o.sticks||0}};
+}
 
 function render(){
   var h=$('hand');h.innerHTML='';
   closed.forEach(function(t,i){
-    var c=document.createElement('span');c.className='chip '+cls(t)+(t===effWin&&closed.lastIndexOf(t)===i?' win':'');
-    c.textContent=tileLabel(t);c.title=tileName(t);
+    var c=el('span',tileLabel(t),'chip');c.title=tileName(t);
     c.onclick=function(){winTile=(winTile===t?-1:t);render();};
-    var x=document.createElement('button');x.textContent='×';
+    var x=el('button','×');x.title='Remove';
     x.onclick=function(e){e.stopPropagation();closed.splice(i,1);if(closed.indexOf(winTile)<0)winTile=-1;render();};
     c.appendChild(x);h.appendChild(c);
   });
-  $('cnt').textContent=closed.length+' tiles (need '+baseLen()+', +1 per kong)';
+  $('cnt').textContent=closed.length+' tiles (need '+baseLen()+', +1 per kong). Winning tile: '+(winTile>=0?tileName(winTile)+' (fixed)':'best one picked automatically; tap a tile to fix it')+'.';
   calc();
 }
 function combos(arr,k){
@@ -249,23 +281,21 @@ function calc(){
   var rs=$('rs').value,res=$('res'),pats=$('pats');
   var K=closed.length-baseLen();
   if(K<0||K>4||!closed.length){
-    res.textContent='Pick '+baseLen()+' tiles (+1 per kong), including the winning tile.';
+    res.textContent='Pick '+baseLen()+' tiles (+1 per kong). '+closed.length+' so far.';
     pats.innerHTML='';$('sets').textContent='Complete a hand to see its sets.';return;
   }
-  var ctx={tsumo:$('tsumo').checked,seat:+$('seat').value,round:+$('round').value,flowers:flowers.slice(),flags:flags};
-  var o=getOpt();
-  ctx.dora=o.dora||0;ctx.ura=o.ura||0;ctx.aka=o.aka||0;ctx.honba=o.honba||0;ctx.sticks=o.sticks||0;
-  var r0=run({},rs,ctx,o),r=r0,keys={};
+  var c=getCtx();
+  var r0=run({},rs,c.ctx,c.o),r=r0,keys={};
   if(r0.interp){
     r0.interp.sets.forEach(function(s){var k=s.k+':'+s.t;if(openKeys[k])keys[k]=true;});
-    if(Object.keys(keys).length){var r1=run(keys,rs,ctx,o);if(r1.ok||!r0.ok)r=r1;}
+    if(Object.keys(keys).length){var r1=run(keys,rs,c.ctx,c.o);if(r1.ok||!r0.ok)r=r1;}
   }
   effWin=r.win!=null?r.win:-1;
   var chips=$('hand').children,seen=false;
-  for(var i=chips.length-1;i>=0;i--){var on=!seen&&closed[i]===effWin&&r.interp;if(on)seen=true;chips[i].classList.toggle('win',!!on);}
+  for(var i=chips.length-1;i>=0;i--){var on=!seen&&closed[i]===effWin&&!!r.interp;if(on)seen=true;chips[i].classList.toggle('win',on);}
   showSets(r.interp||r0.interp);
   if(!r.ok){
-    res.innerHTML='<span class="err"></span>';res.firstChild.textContent=r.error;
+    res.innerHTML='';res.appendChild(el('span',r.error,'err'));
     pats.innerHTML='';
     if(r.patterns&&r.patterns.length)showPats(r.patterns);
     return;
@@ -278,49 +308,122 @@ function showSets(I){
   if(!I){box.textContent='Not a complete hand.';return;}
   if(I.special){box.textContent={chiitoi:'Seven pairs',kokushi:'Thirteen orphans',pairs17:'Seven pairs and a triplet'}[I.special]||I.special;return;}
   I.sets.forEach(function(s){
-    var l=document.createElement('label');var c=document.createElement('input');c.type='checkbox';
+    var l=el('label');l.title='Tick if this set was called from a discard (open)';
+    var c=document.createElement('input');c.type='checkbox';
     var key=s.k+':'+s.t;c.checked=!!openKeys[key];
     c.onchange=function(){openKeys[key]=c.checked;calc();};
-    l.appendChild(c);
-    l.appendChild(document.createTextNode(' '+H.setTiles(s).map(tileLabel).join('')+(s.k==='kong'?' (kong)':'')+' – called/open'));
-    box.appendChild(l);box.appendChild(document.createElement('br'));
+    l.appendChild(c);l.appendChild(el('span',H.setTiles(s).map(tileLabel).join(''),'g'));
+    box.appendChild(l);
   });
-  var p=document.createElement('div');p.textContent='Pair: '+tileLabel(I.pair)+(I.wait?' · wait: '+I.wait:'');box.appendChild(p);
+  box.appendChild(el('div','Pair '+tileName(I.pair)+(I.wait?' · wait: '+I.wait:'')));
 }
 function showPats(list){
-  var ul=document.createElement('ul');ul.className='pat';
-  list.forEach(function(p){var li=document.createElement('li');var a=document.createElement('span'),b=document.createElement('span');a.textContent=p.label;b.textContent=p.value;li.appendChild(a);li.appendChild(b);ul.appendChild(li);});
+  var ul=el('ul',null,'pat');
+  list.forEach(function(p){var li=el('li');li.appendChild(el('span',p.label));li.appendChild(el('span',p.value));ul.appendChild(li);});
   $('pats').innerHTML='';$('pats').appendChild(ul);
 }
 function show(s){
   var box=$('res');box.innerHTML='';
-  var h=document.createElement('div');h.className='head';h.textContent=s.headline||'';box.appendChild(h);
-  if(s.sub){var d=document.createElement('div');d.className='sub';d.textContent=s.sub;box.appendChild(d);}
+  box.appendChild(el('div',s.headline||'','head'));
+  if(s.sub)box.appendChild(el('div',s.sub,'sub'));
   (s.lines||[]).forEach(function(l){
-    var d=document.createElement('div');d.className='pay';
-    var a=document.createElement('span'),b=document.createElement('span');
-    a.textContent=l.label+(l.count>1?' ×'+l.count:'');
-    b.textContent=l.amount+(l.extra?' '+l.extra:'');
-    d.appendChild(a);d.appendChild(b);box.appendChild(d);
+    var d=el('div',null,'pay');
+    d.appendChild(el('span',l.label+(l.count>1?' ×'+l.count:'')));
+    d.appendChild(el('span',l.amount+(l.extra?' '+l.extra:'')));
+    box.appendChild(d);
   });
-  if(s.nets){var d=document.createElement('div');d.className='sub';d.textContent='Net: '+s.nets.join(' / ');box.appendChild(d);}
+  if(s.nets)box.appendChild(el('div','Net: '+s.nets.join(' / '),'sub'));
 }
 
-function loadExample(){
-  var tw=$('rs').value==='tw';
-  closed=H.parse(tw?'123m456m456p789s234s11z':'123m456p789s234s55z').tiles.sort(function(a,b){return a-b;});
+/* ---- examples and random hands ---- */
+function loadTiles(tiles,tsumo){
+  closed=tiles.slice().sort(function(a,b){return a-b;});
   winTile=-1;openKeys={};
+  if(tsumo!=null)$('tsumo').checked=!!tsumo;
   render();
 }
+function padForTw(tiles){
+  if(setsTotal()!==5)return tiles;
+  var extra=[[10,11,12],[19,20,21],[29,29,29],[16,16,16],[3,4,5],[30,30,30]];
+  for(var i=0;i<extra.length;i++){
+    var t=tiles.concat(extra[i]),cnt={},ok=true;
+    t.forEach(function(x){cnt[x]=(cnt[x]||0)+1;if(cnt[x]>4)ok=false;});
+    if(ok)return t;
+  }
+  return tiles;
+}
+function filterExamples(){var tw=setsTotal()===5;Array.prototype.forEach.call($('exs').options,function(o){if(o.className==='no16')o.hidden=o.disabled=tw;});}
+function buildExamples(){
+  var s=$('exs');
+  EX.forEach(function(e,i){var o=el('option',e[0]);o.value=i;if(e[3])o.className='no16';s.appendChild(o);});
+  s.onchange=function(){
+    if(s.value==='')return;
+    var e=EX[+s.value];
+    flags={};buildFlags();
+    loadTiles(padForTw(H.parse(e[1]).tiles),e[2]);
+    s.value='';
+  };
+}
+var rnd=function(n){return Math.floor(Math.random()*n);};
+function randomTiles(){
+  var n=setsTotal(),mode=rnd(5),suit=rnd(3);
+  var cnt=new Array(34).fill(0),tiles=[];
+  function put(arr){
+    for(var i=0;i<arr.length;i++)if(cnt[arr[i]]+arr.filter(function(x){return x===arr[i];}).length>4)return false;
+    arr.forEach(function(x){cnt[x]++;tiles.push(x);});return true;
+  }
+  if(mode===4&&n===4){ // seven pairs
+    var used={};while(Object.keys(used).length<7)used[rnd(34)]=1;
+    Object.keys(used).forEach(function(k){tiles.push(+k,+k);});return tiles;
+  }
+  function suited(){return mode===1?suit*9+rnd(9):rnd(27);}
+  function honor(){return 27+rnd(7);}
+  for(var i=0;i<n;i++){
+    var kind=(mode===2||mode===3||Math.random()<.25)?'pung':'chow',ok=false;
+    for(var tries=0;tries<30&&!ok;tries++){
+      if(kind==='pung'){
+        var t=mode===3?(Math.random()<.7?honor():[0,8,9,17,18,26][rnd(6)]):(Math.random()<.2?honor():suited());
+        ok=put([t,t,t]);
+      }else{
+        var s=mode===1?suit:rnd(3),b=s*9+rnd(7);
+        ok=put([b,b+1,b+2]);
+      }
+    }
+    if(!ok)return null;
+  }
+  var pairOk=false;
+  for(var k=0;k<30&&!pairOk;k++){var p=mode===3?honor():(mode===1&&Math.random()>.2?suit*9+rnd(9):rnd(34));pairOk=put([p,p]);}
+  if(!pairOk)return null;
+  if(Math.random()<.15){ // upgrade one pung to a kong
+    var cands=[];for(var t2=0;t2<34;t2++)if(cnt[t2]===3)cands.push(t2);
+    if(cands.length)tiles.push(cands[rnd(cands.length)]);
+  }
+  return tiles;
+}
+function randomHand(){
+  var rs=$('rs').value;
+  flags={};buildFlags();
+  var savedClosed=closed,savedWin=winTile;
+  for(var a=0;a<6000;a++){
+    var tl=randomTiles();if(!tl)continue;
+    closed=tl.slice().sort(function(x,y){return x-y;});winTile=-1;openKeys={};
+    $('tsumo').checked=Math.random()<.5;
+    var c=getCtx(),r=run({},rs,c.ctx,c.o);
+    if(r.ok){render();return;}
+  }
+  closed=savedClosed;winTile=savedWin;render();
+}
+
 $('rs').onchange=function(){
   while(closed.length>baseLen()+4)closed.pop();
-  buildFlags();buildOpts();render();
+  winTile=-1;openKeys={};
+  buildFlags();buildOpts();filterExamples();render();
 };
 $('tsumo').onchange=calc;$('seat').onchange=calc;$('round').onchange=calc;
-$('ex').onclick=loadExample;
+$('rnd').onclick=randomHand;
 $('clr').onclick=function(){closed=[];winTile=-1;openKeys={};flowers=[0,0,0,0,0,0,0,0];flags={};buildFlowers();buildFlags();render();};
 
-buildPalette();buildFlowers();buildFlags();buildOpts();render();
+buildPalette();buildFlowers();buildFlags();buildOpts();buildExamples();render();
 })();
 </script>
 </body>
