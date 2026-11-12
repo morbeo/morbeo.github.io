@@ -285,7 +285,14 @@ function calc(){
     pats.innerHTML='';$('sets').textContent='Complete a hand to see its sets.';return;
   }
   var c=getCtx();
+  var fixedNote='';
   var r0=run({},rs,c.ctx,c.o),r=r0,keys={};
+  if(winTile>=0&&!r0.ok){
+    var keep=winTile;winTile=-1;
+    var ra=run({},rs,c.ctx,c.o);
+    if(ra.ok){r0=r=ra;fixedNote='Fixed winning tile '+tileName(keep)+' cannot complete this hand; using '+tileName(ra.win)+' instead.';}
+    else winTile=keep;
+  }
   if(r0.interp){
     r0.interp.sets.forEach(function(s){var k=s.k+':'+s.t;if(openKeys[k])keys[k]=true;});
     if(Object.keys(keys).length){var r1=run(keys,rs,c.ctx,c.o);if(r1.ok||!r0.ok)r=r1;}
@@ -302,6 +309,7 @@ function calc(){
   }
   showPats(r.patterns);
   show(r.score);
+  if(fixedNote)res.appendChild(el('div',fixedNote,'sub'));
 }
 function showSets(I){
   var box=$('sets');box.innerHTML='';
