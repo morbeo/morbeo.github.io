@@ -67,7 +67,7 @@ ul.pat li{display:flex;justify-content:space-between;border-bottom:1px solid var
   <h2>Your hand</h2>
   <div class="chips" id="hand"></div>
   <div class="hint" id="cnt"></div>
-  <div class="hint">Tap a tile to mark it as the winning tile (outlined).</div>
+  <div class="hint">Winning tile: best one is picked automatically; tap a tile to fix it (tap again to unfix).</div>
 </section>
 
 <section><h2>Detected sets</h2><div id="sets" class="hint">Complete a hand to see its sets.</div></section>
@@ -110,7 +110,7 @@ var miss=['Mahjong','MahjongHand','MahjongRules'].filter(function(n){return type
 if(miss.length){document.getElementById('res').textContent='Missing script(s): '+miss.map(function(n){return {Mahjong:'mahjong.js',MahjongHand:'hand.js',MahjongRules:'rules.js'}[n];}).join(', ')+'. Put all .js files next to index.html.';return;}
 var H=MahjongHand,R=MahjongRules;
 var $=function(id){return document.getElementById(id);};
-var closed=[],winTile=-1,flowers=[0,0,0,0,0,0,0,0],openKeys={};
+var closed=[],winTile=-1,effWin=-1,flowers=[0,0,0,0,0,0,0,0],openKeys={};
 var flags={};
 var FLAGS=[
  ['riichi','Riichi','riichi'],['dblRiichi','Double riichi','riichi'],['ippatsu','Ippatsu','riichi'],
@@ -146,7 +146,7 @@ function buildPalette(){
       b.className='t '+cls(t);b.textContent=tileLabel(t);b.title=tileName(t);
       b.onclick=function(){
         if(countOf(t)>=4||closed.length>=baseLen()+4)return;
-        closed.push(t);closed.sort(function(a,b){return a-b;});winTile=t;render();
+        closed.push(t);closed.sort(function(a,b){return a-b;});render();
       };
       p.appendChild(b);
     })(t);
@@ -196,11 +196,11 @@ function getOpt(){
 function render(){
   var h=$('hand');h.innerHTML='';
   closed.forEach(function(t,i){
-    var c=document.createElement('span');c.className='chip '+cls(t)+(t===winTile&&closed.lastIndexOf(t)===i?' win':'');
+    var c=document.createElement('span');c.className='chip '+cls(t)+(t===effWin&&closed.lastIndexOf(t)===i?' win':'');
     c.textContent=tileLabel(t);c.title=tileName(t);
-    c.onclick=function(){winTile=t;render();};
+    c.onclick=function(){winTile=(winTile===t?-1:t);render();};
     var x=document.createElement('button');x.textContent='×';
-    x.onclick=function(e){e.stopPropagation();closed.splice(i,1);if(closed.indexOf(winTile)<0)winTile=closed.length?closed[closed.length-1]:-1;render();};
+    x.onclick=function(e){e.stopPropagation();closed.splice(i,1);if(closed.indexOf(winTile)<0)winTile=-1;render();};
     c.appendChild(x);h.appendChild(c);
   });
   $('cnt').textContent=closed.length+' tiles (need '+baseLen()+', +1 per kong)';
@@ -216,35 +216,39 @@ function removeOne(arr,t,protect){
   for(var i=0;i<arr.length;i++)if(arr[i]===t){if(protect&&t===protect.t&&!protect.done){protect.done=true;continue;}arr.splice(i,1);return true;}
   return false;
 }
-function build(kongs,keys){
+function build(kongs,keys,win){
   var rem=closed.slice(),melds=[];
   kongs.forEach(function(t){for(var i=0;i<4;i++)removeOne(rem,t);melds.push({k:'kong',t:t,open:!!keys['kong:'+t]});});
   Object.keys(keys).forEach(function(key){
     if(!keys[key])return;
     var p=key.split(':'),k=p[0],t=+p[1];
     if(k==='kong')return;
-    var need=k==='chow'?[t,t+1,t+2]:[t,t,t],tmp=rem.slice(),prot={t:winTile,done:false},okk=true;
+    var need=k==='chow'?[t,t+1,t+2]:[t,t,t],tmp=rem.slice(),prot={t:win,done:false},okk=true;
     need.forEach(function(x){if(!removeOne(tmp,x,prot))okk=false;});
     if(okk){rem=tmp;melds.push({k:k,t:t,open:true});}
   });
-  return {closed:rem,melds:melds,win:winTile};
+  return {closed:rem,melds:melds,win:win};
 }
 function run(keys,rs,ctx,o){
   var K=closed.length-baseLen();
-  var cand=[];for(var t=0;t<34;t++)if(countOf(t)===4&&t!==winTile)cand.push(t);
+  var wins=winTile>=0?[winTile]:closed.filter(function(t,i){return closed.indexOf(t)===i;});
   var best=null;
-  combos(cand,K).forEach(function(kg){
-    var hand=build(kg,keys),r;
-    try{r=R.analyze(rs,hand,ctx,o);}catch(e){r={ok:false,error:e.message};}
-    if(r.ok){if(!best||!best.ok||r.detail.rank>best.detail.rank)best=r;}
-    else if(!best){best=r;}
+  wins.forEach(function(win){
+    var cand=[];for(var t=0;t<34;t++)if(countOf(t)===4&&t!==win)cand.push(t);
+    combos(cand,K).forEach(function(kg){
+      var hand=build(kg,keys,win),r;
+      try{r=R.analyze(rs,hand,ctx,o);}catch(e){r={ok:false,error:e.message};}
+      r.win=win;
+      if(r.ok){if(!best||!best.ok||r.detail.rank>best.detail.rank)best=r;}
+      else if(!best||(!best.ok&&r.interp&&!best.interp))best=r;
+    });
   });
   return best||{ok:false,error:'Kongs need four identical tiles.'};
 }
 function calc(){
   var rs=$('rs').value,res=$('res'),pats=$('pats');
   var K=closed.length-baseLen();
-  if(K<0||K>4||winTile<0){
+  if(K<0||K>4||!closed.length){
     res.textContent='Pick '+baseLen()+' tiles (+1 per kong), including the winning tile.';
     pats.innerHTML='';$('sets').textContent='Complete a hand to see its sets.';return;
   }
@@ -256,6 +260,9 @@ function calc(){
     r0.interp.sets.forEach(function(s){var k=s.k+':'+s.t;if(openKeys[k])keys[k]=true;});
     if(Object.keys(keys).length){var r1=run(keys,rs,ctx,o);if(r1.ok||!r0.ok)r=r1;}
   }
+  effWin=r.win!=null?r.win:-1;
+  var chips=$('hand').children,seen=false;
+  for(var i=chips.length-1;i>=0;i--){var on=!seen&&closed[i]===effWin&&r.interp;if(on)seen=true;chips[i].classList.toggle('win',!!on);}
   showSets(r.interp||r0.interp);
   if(!r.ok){
     res.innerHTML='<span class="err"></span>';res.firstChild.textContent=r.error;
@@ -302,7 +309,7 @@ function show(s){
 function loadExample(){
   var tw=$('rs').value==='tw';
   closed=H.parse(tw?'123m456m456p789s234s11z':'123m456p789s234s55z').tiles.sort(function(a,b){return a-b;});
-  winTile=H.parse('4s').tiles[0];openKeys={};
+  winTile=-1;openKeys={};
   render();
 }
 $('rs').onchange=function(){
