@@ -16,15 +16,15 @@ select,input[type=number]{font:inherit;padding:5px;border:1px solid var(--line);
 input[type=number]{width:70px}
 label{display:inline-flex;align-items:center;gap:5px;margin:3px 10px 3px 0}
 .row{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.pal{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
-.t{border:1px solid var(--line);background:#fffdf6;border-radius:5px;padding:7px 0;font:600 14px system-ui;text-align:center;cursor:pointer;min-width:0}
-.t.m{color:#a3262a}.t.p{color:#1a5fa8}.t.s{color:#1f6f4a}.t.z{color:#333}
+.pal{display:grid;grid-template-columns:repeat(9,1fr);gap:3px}
+.t{border:1px solid var(--line);background:#fffdf6;border-radius:5px;padding:2px 0;font:34px/1.25 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222;text-align:center;cursor:pointer;min-width:0}
+
 .t:active{background:#e8e2cc}
 .chips{display:flex;flex-wrap:wrap;gap:4px;min-height:36px}
-.chip{display:inline-block;border:1px solid var(--line);background:#fffdf6;border-radius:5px;padding:6px 8px;font-weight:600;cursor:pointer}
+.chip{display:inline-block;border:1px solid var(--line);background:#fffdf6;border-radius:5px;padding:0 6px;font:34px/1.25 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222;cursor:pointer}
 .chip.win{outline:2px solid var(--acc);background:#e6f3ec}
 .chip.meld{background:#eef0f4;cursor:default}
-.chip button{border:0;background:none;color:var(--bad);font-weight:700;cursor:pointer;padding:0 0 0 6px}
+.chip button{border:0;background:none;color:var(--bad);font:700 14px system-ui;cursor:pointer;padding:0 0 0 4px;vertical-align:top}
 .hint{color:var(--mut);font-size:12px;margin:4px 0}
 .seg button,.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 9px;cursor:pointer}
 .seg button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
@@ -130,9 +130,10 @@ var OPTS={
 };
 var opt={};
 function tileLabel(t){
-  if(t<27)return ((t%9)+1)+'mps'[Math.floor(t/9)];
-  return ['E','S','W','N','Wh','Gr','Rd'][t-27];
+  var cp=t<9?0x1F007+t:t<18?0x1F019+(t-9):t<27?0x1F010+(t-18):t<31?0x1F000+(t-27):t===31?0x1F006:t===32?0x1F005:0x1F004;
+  return String.fromCodePoint(cp)+'\uFE0E';
 }
+function tileName(t){return t<27?((t%9)+1)+'mps'[Math.floor(t/9)]:['East','South','West','North','White','Green','Red'][t-27];}
 function cls(t){return t<9?'m':t<18?'p':t<27?'s':'z';}
 function setsTotal(){return $('rs').value==='tw'?5:4;}
 function baseLen(){return setsTotal()===5?17:14;}
@@ -142,7 +143,7 @@ function buildPalette(){
   for(var t=0;t<34;t++){
     (function(t){
       var b=document.createElement('button');
-      b.className='t '+cls(t);b.textContent=tileLabel(t);
+      b.className='t '+cls(t);b.textContent=tileLabel(t);b.title=tileName(t);
       b.onclick=function(){
         if(countOf(t)>=4||closed.length>=baseLen()+4)return;
         closed.push(t);closed.sort(function(a,b){return a-b;});winTile=t;render();
@@ -196,7 +197,7 @@ function render(){
   var h=$('hand');h.innerHTML='';
   closed.forEach(function(t,i){
     var c=document.createElement('span');c.className='chip '+cls(t)+(t===winTile&&closed.lastIndexOf(t)===i?' win':'');
-    c.textContent=tileLabel(t);
+    c.textContent=tileLabel(t);c.title=tileName(t);
     c.onclick=function(){winTile=t;render();};
     var x=document.createElement('button');x.textContent='×';
     x.onclick=function(e){e.stopPropagation();closed.splice(i,1);if(closed.indexOf(winTile)<0)winTile=closed.length?closed[closed.length-1]:-1;render();};
@@ -274,7 +275,7 @@ function showSets(I){
     var key=s.k+':'+s.t;c.checked=!!openKeys[key];
     c.onchange=function(){openKeys[key]=c.checked;calc();};
     l.appendChild(c);
-    l.appendChild(document.createTextNode(' '+H.setTiles(s).map(tileLabel).join(' ')+(s.k==='kong'?' (kong)':'')+' – called/open'));
+    l.appendChild(document.createTextNode(' '+H.setTiles(s).map(tileLabel).join('')+(s.k==='kong'?' (kong)':'')+' – called/open'));
     box.appendChild(l);box.appendChild(document.createElement('br'));
   });
   var p=document.createElement('div');p.textContent='Pair: '+tileLabel(I.pair)+(I.wait?' · wait: '+I.wait:'');box.appendChild(p);
