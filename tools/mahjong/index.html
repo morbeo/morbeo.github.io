@@ -24,21 +24,25 @@ button{border:1px solid var(--line);background:#fff;border-radius:5px;padding:4p
 button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
 label{display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;cursor:help}
 .row{display:flex;flex-wrap:wrap;align-items:center}
-.pal{display:grid;grid-template-columns:repeat(9,1fr);gap:3px}
-.t{border:1px solid var(--line);background:#fffdf6;border-radius:4px;padding:0;font:30px/1.3 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222}
-.t:active{background:#e8e2cc}
-.chips{display:flex;flex-wrap:wrap;gap:3px;min-height:40px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
-.chip{display:inline-block;border:1px solid var(--line);background:#fffdf6;border-radius:4px;padding:0 4px;font:30px/1.3 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif;color:#222;cursor:pointer}
-.chip.win{outline:2px solid var(--acc);background:#e6f3ec}
-.chip button{border:0;background:none;color:var(--bad);font:700 12px system-ui;padding:0 0 0 3px;vertical-align:top}
+.pal{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
+.pal .sep{grid-column:1/-1;height:0}
+.tile{display:block;position:relative;aspect-ratio:3/4;background:url(tiles/front.svg) center/100% 100% no-repeat;border-radius:4px}
+.tile img{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.t{border:0;padding:0;background:none;cursor:pointer;border-radius:4px}
+.t:active{filter:brightness(.85)}
+.chips{display:flex;flex-wrap:wrap;gap:3px;min-height:52px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
+.chip{position:relative;width:36px;cursor:pointer;border-radius:4px}
+.chip.win{outline:2px solid var(--acc);outline-offset:1px}
+.chip button{position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:8px;padding:0;line-height:14px;font:700 11px system-ui;color:var(--bad);background:#fff;border:1px solid var(--line)}
 .hint{color:var(--mut);font-size:12px;margin-top:3px}
 .flags{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:0 6px;margin-top:4px}
 .flags label{margin:1px 0;font-size:13px}
 .fl{margin-top:4px;gap:3px}
-.fl button{width:32px;padding:3px 0}
-.fl button.on{background:#f3d98b}
+.fl .t{width:30px;opacity:.3}
+.fl .t.on{opacity:1}
 .sets label{display:inline-flex;margin:1px 10px 1px 0;font-size:13px}
-.sets .g{font:22px/1.2 'Segoe UI Symbol','Noto Sans Symbols 2','Apple Symbols',sans-serif}
+.sets .g{display:inline-flex;gap:1px;margin-left:2px}
+.sets .g .tile{width:22px}
 ul.pat{list-style:none;margin:0;padding:0}
 ul.pat li{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:3px 0}
 ul.pat li:last-child{border:0}
@@ -71,7 +75,7 @@ details>summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-sp
 <div class="grid">
  <div class="col">
   <section>
-    <h2>Tiles <small>– tap to add: 14 tiles (17 for Taiwanese), +1 per kong</small></h2>
+    <h2>Tiles <small>– tap to add: 14 tiles (17 for Taiwanese), +1 per kong. Red fives (last row) are +1 han in Riichi</small></h2>
     <div class="pal" id="pal"></div>
     <div class="chips" id="hand" title="Your hand. Tap a tile to fix it as the winning tile; × removes it."></div>
     <div class="hint" id="cnt"></div>
@@ -94,7 +98,7 @@ details>summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-sp
       <label title="Your seat wind. East is the dealer">Seat <select id="seat"><option value="0">East</option><option value="1">South</option><option value="2">West</option><option value="3">North</option></select></label>
       <label title="Prevailing (round) wind">Round <select id="round"><option value="0">East</option><option value="1">South</option><option value="2">West</option><option value="3">North</option></select></label>
     </div>
-    <div class="row fl" id="fl" title="Flowers (F1-F4) and seasons (S1-S4) you hold. The number matches a seat: 1 = East ... 4 = North"></div>
+    <div class="row fl" id="fl" title="Flowers and seasons you hold. Tap to toggle. Numbers 1-4 match the seats East, South, West, North"></div>
     <div class="flags" id="flags"></div>
   </section>
   <section>
@@ -102,6 +106,7 @@ details>summary{cursor:pointer;font-size:11px;text-transform:uppercase;letter-sp
   </section>
  </div>
 </div>
+<div class="hint" style="margin:10px 0 0">Tile art: <a href="https://github.com/FluffyStuff/riichi-mahjong-tiles">FluffyStuff/riichi-mahjong-tiles</a> (public domain, CC0); white dragon, flower and season tiles drawn for this tool using Noto Serif CJK (SIL OFL).</div>
 </main>
 
 <div id="bar"><div class="in" id="res">Enter a complete winning hand.</div></div>
@@ -116,7 +121,7 @@ var miss=['Mahjong','MahjongHand','MahjongRules'].filter(function(n){return type
 if(miss.length){document.getElementById('res').textContent='Missing script(s): '+miss.map(function(n){return {Mahjong:'mahjong.js',MahjongHand:'hand.js',MahjongRules:'rules.js'}[n];}).join(', ')+'. Put all .js files next to index.html.';return;}
 var H=MahjongHand,R=MahjongRules;
 var $=function(id){return document.getElementById(id);};
-var closed=[],winTile=-1,effWin=-1,flowers=[0,0,0,0,0,0,0,0],openKeys={},flags={};
+var closed=[],red=[0,0,0],winTile=-1,effWin=-1,flowers=[0,0,0,0,0,0,0,0],openKeys={},flags={};
 
 /* [key, label, rulesets, hint] */
 var FLAGS=[
@@ -137,7 +142,7 @@ var FLAGS=[
 ];
 /* [type, key, label, default/choices, hint] */
 var OPTS={
- riichi:[['n','dora','Dora',0,'Dora tiles in your hand, +1 han each. Dora alone is not a yaku.'],['n','ura','Ura dora',0,'Ura dora under riichi, +1 han each. Only counted if riichi is ticked.'],['n','aka','Red fives',0,'Red five tiles in your hand, +1 han each.'],['n','honba','Honba',0,'Repeat counters: +300 points total per honba.'],['n','sticks','Riichi sticks',0,'Riichi sticks (1000 each) on the table, collected by the winner.'],['c','kazoe','Kazoe yakuman',1,'13+ han counts as a yakuman instead of capping at sanbaiman.'],['c','kiriage','Kiriage mangan',0,'Round 30 fu/4 han and 60 fu/3 han up to mangan.'],['c','doubleYakuman','Double yakuman',1,'Score daisuushii, 13-sided kokushi, pure chuuren and suuankou tanki as 2x yakuman.']],
+ riichi:[['n','dora','Dora',0,'Dora tiles in your hand, +1 han each. Dora alone is not a yaku.'],['n','ura','Ura dora',0,'Ura dora under riichi, +1 han each. Only counted if riichi is ticked.'],['n','honba','Honba',0,'Repeat counters: +300 points total per honba.'],['n','sticks','Riichi sticks',0,'Riichi sticks (1000 each) on the table, collected by the winner.'],['c','kazoe','Kazoe yakuman',1,'13+ han counts as a yakuman instead of capping at sanbaiman.'],['c','kiriage','Kiriage mangan',0,'Round 30 fu/4 han and 60 fu/3 han up to mangan.'],['c','doubleYakuman','Double yakuman',1,'Score daisuushii, 13-sided kokushi, pure chuuren and suuankou tanki as 2x yakuman.']],
  mcr:[['n','min','Minimum points',8,'Points needed to win (flowers do not count toward it).']],
  hk:[['s','table','Table',[['half','Half spicy'],['full','Full spicy'],['fw','Four Winds old style']],'Faan to points table: half spicy grows more slowly, full spicy doubles every faan, old style is the fixed Four Winds table.'],['n','min','Minimum faan',3,'Minimum faan needed to win.'],['n','limit','Limit (faan)',13,'Faan at which the hand reaches the limit.'],['s','discardPay','Discard pays',[['all','All'],['half','Half']],'Whether the discarder pays the full amount or half of it.']],
  cn:[['n','min','Minimum faan',0,'Minimum faan needed to win (0 = no minimum).']],
@@ -163,9 +168,14 @@ var EX=[
  ['All green','234s234s666s888s66z',1]
 ];
 
-var cp=function(t){return t<9?0x1F007+t:t<18?0x1F019+(t-9):t<27?0x1F010+(t-18):t<31?0x1F000+(t-27):t===31?0x1F006:t===32?0x1F005:0x1F004;};
-function tileLabel(t){return String.fromCodePoint(cp(t))+'︎';}
 function tileName(t){return t<27?((t%9)+1)+'mps'[Math.floor(t/9)]:['East','South','West','North','White','Green','Red'][t-27];}
+var RED5=[4,13,22];
+function tileEl(src,name){
+  var s=document.createElement('span');s.className='tile';
+  var i=document.createElement('img');i.src=src;i.alt=name;i.draggable=false;s.appendChild(i);return s;
+}
+var tImg=function(t){return 'tiles/t'+t+'.svg';};
+var FLOWER_NAMES=['Plum','Orchid','Chrysanthemum','Bamboo','Spring','Summer','Autumn','Winter'];
 function setsTotal(){return $('rs').value==='tw'?5:4;}
 function baseLen(){return setsTotal()===5?17:14;}
 function countOf(t){var n=0;closed.forEach(function(x){if(x===t)n++;});return n;}
@@ -173,23 +183,30 @@ function el(tag,txt,cls){var e=document.createElement(tag);if(txt!=null)e.textCo
 
 function buildPalette(){
   var p=$('pal');p.innerHTML='';
-  for(var t=0;t<34;t++){(function(t){
-    var b=el('button',tileLabel(t),'t');b.title=tileName(t);
+  function add(t,isRed){
+    var b=el('button',null,'t');b.title=isRed?'Red five ('+tileName(t)+')':tileName(t);
+    b.appendChild(tileEl(isRed?'tiles/r'+t+'.svg':tImg(t),b.title));
     b.onclick=function(){
       if(countOf(t)>=4||closed.length>=baseLen()+4)return;
+      var s=RED5.indexOf(t);
+      if(isRed){if(red[s]>=1)return;red[s]++;}
       closed.push(t);closed.sort(function(a,b){return a-b;});render();
     };
     p.appendChild(b);
-  })(t);}
+  }
+  for(var t=0;t<34;t++)add(t,false);
+  p.appendChild(el('div',null,'sep'));
+  RED5.forEach(function(t){add(t,true);});
 }
 function buildFlowers(){
   var f=$('fl');f.innerHTML='';
-  ['F1','F2','F3','F4','S1','S2','S3','S4'].forEach(function(n,i){
-    var b=el('button',n);b.title=(i<4?'Flower ':'Season ')+(i%4+1)+' ('+['East','South','West','North'][i%4]+')';
+  for(var i=0;i<8;i++){(function(i){
+    var b=el('button',null,'t');b.title=FLOWER_NAMES[i]+' ('+['East','South','West','North'][i%4]+')';
     b.classList.toggle('on',!!flowers[i]);
+    b.appendChild(tileEl('tiles/f'+i+'.svg',b.title));
     b.onclick=function(){flowers[i]=flowers[i]?0:1;b.classList.toggle('on',!!flowers[i]);calc();};
     f.appendChild(b);
-  });
+  })(i);}
 }
 function buildFlags(){
   var rs=$('rs').value,box=$('flags');box.innerHTML='';
@@ -223,16 +240,26 @@ function getOpt(){
 }
 function getCtx(){
   var o=getOpt();
-  return {o:o,ctx:{tsumo:$('tsumo').checked,seat:+$('seat').value,round:+$('round').value,flowers:flowers.slice(),flags:flags,dora:o.dora||0,ura:o.ura||0,aka:o.aka||0,honba:o.honba||0,sticks:o.sticks||0}};
+  return {o:o,ctx:{tsumo:$('tsumo').checked,seat:+$('seat').value,round:+$('round').value,flowers:flowers.slice(),flags:flags,dora:o.dora||0,ura:o.ura||0,aka:red[0]+red[1]+red[2],honba:o.honba||0,sticks:o.sticks||0}};
 }
 
 function render(){
   var h=$('hand');h.innerHTML='';
+  var seen={};
   closed.forEach(function(t,i){
-    var c=el('span',tileLabel(t),'chip');c.title=tileName(t);
+    var s=RED5.indexOf(t),n=seen[t]=(seen[t]||0)+1,isRed=s>=0&&n<=red[s];
+    var c=el('span',null,'chip');c.title=tileName(t)+(isRed?' (red)':'');
+    c.appendChild(tileEl(isRed?'tiles/r'+t+'.svg':tImg(t),c.title));
+    c.dataset.t=t;
     c.onclick=function(){winTile=(winTile===t?-1:t);render();};
     var x=el('button','×');x.title='Remove';
-    x.onclick=function(e){e.stopPropagation();closed.splice(i,1);if(closed.indexOf(winTile)<0)winTile=-1;render();};
+    x.onclick=function(e){
+      e.stopPropagation();
+      closed.splice(i,1);
+      if(s>=0){var left=closed.filter(function(y){return y===t;}).length;if(isRed||red[s]>left)red[s]=Math.min(red[s]-(isRed?1:0),left);}
+      if(closed.indexOf(winTile)<0)winTile=-1;
+      render();
+    };
     c.appendChild(x);h.appendChild(c);
   });
   $('cnt').textContent=closed.length+' tiles (need '+baseLen()+', +1 per kong). Winning tile: '+(winTile>=0?tileName(winTile)+' (fixed)':'best one picked automatically; tap a tile to fix it')+'.';
@@ -322,7 +349,7 @@ function showSets(I){
     var c=document.createElement('input');c.type='checkbox';
     var key=s.k+':'+s.t;c.checked=!!openKeys[key];
     c.onchange=function(){openKeys[key]=c.checked;calc();};
-    l.appendChild(c);l.appendChild(el('span',H.setTiles(s).map(tileLabel).join(''),'g'));
+    l.appendChild(c);var g=el('span',null,'g');H.setTiles(s).forEach(function(x){g.appendChild(tileEl(tImg(x),tileName(x)));});l.appendChild(g);
     box.appendChild(l);
   });
   box.appendChild(el('div','Pair '+tileName(I.pair)+(I.wait?' · wait: '+I.wait:'')));
@@ -348,7 +375,7 @@ function show(s){
 /* ---- examples and random hands ---- */
 function loadTiles(tiles,tsumo){
   closed=tiles.slice().sort(function(a,b){return a-b;});
-  winTile=-1;openKeys={};
+  winTile=-1;openKeys={};red=[0,0,0];
   if(tsumo!=null)$('tsumo').checked=!!tsumo;
   render();
 }
@@ -416,7 +443,7 @@ function randomHand(){
   var savedClosed=closed,savedWin=winTile;
   for(var a=0;a<6000;a++){
     var tl=randomTiles();if(!tl)continue;
-    closed=tl.slice().sort(function(x,y){return x-y;});winTile=-1;openKeys={};
+    closed=tl.slice().sort(function(x,y){return x-y;});winTile=-1;openKeys={};red=[0,0,0];RED5.forEach(function(t,k){if(countOf(t)>0&&Math.random()<.4)red[k]=1;});
     $('tsumo').checked=Math.random()<.5;
     var c=getCtx(),r=run({},rs,c.ctx,c.o);
     if(r.ok){render();return;}
@@ -426,12 +453,13 @@ function randomHand(){
 
 $('rs').onchange=function(){
   while(closed.length>baseLen()+4)closed.pop();
+  RED5.forEach(function(t,k){red[k]=Math.min(red[k],countOf(t));});
   winTile=-1;openKeys={};
   buildFlags();buildOpts();filterExamples();render();
 };
 $('tsumo').onchange=calc;$('seat').onchange=calc;$('round').onchange=calc;
 $('rnd').onclick=randomHand;
-$('clr').onclick=function(){closed=[];winTile=-1;openKeys={};flowers=[0,0,0,0,0,0,0,0];flags={};buildFlowers();buildFlags();render();};
+$('clr').onclick=function(){closed=[];red=[0,0,0];winTile=-1;openKeys={};flowers=[0,0,0,0,0,0,0,0];flags={};buildFlowers();buildFlags();render();};
 
 buildPalette();buildFlowers();buildFlags();buildOpts();buildExamples();render();
 })();
