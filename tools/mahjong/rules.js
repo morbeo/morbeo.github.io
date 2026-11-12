@@ -784,10 +784,70 @@
     mcr: { sets: 4, eval: mcrEval },
   };
 
+  /* ───────── situation checks ───────── */
+
+  const FLAG_SETS = {
+    riichi: 'riichi', dblRiichi: 'riichi', ippatsu: 'riichi',
+    lastWall: 'riichi hk mcr cn cc tw', lastDiscard: 'riichi hk mcr cn cc', kongDraw: 'riichi hk mcr cn cc',
+    robKong: 'riichi hk mcr cn cc tw', heavenly: 'riichi hk cc tw', earthly: 'riichi hk cc tw',
+    fourthTile: 'mcr cn', doubleKong: 'hk', early: 'tw', early2: 'tw', readyOriginal: 'cc tw',
+  };
+  function activeFlags(ruleset, flags) {
+    const out = {};
+    Object.keys(flags || {}).forEach((k) => {
+      if (flags[k] && FLAG_SETS[k] && FLAG_SETS[k].split(' ').includes(ruleset)) out[k] = true;
+    });
+    return out;
+  }
+  /* Contradictions between the ticks, the seat, self-draw and the hand. hand is optional. */
+  function conflicts(ruleset, hand, ctx) {
+    const f = activeFlags(ruleset, ctx.flags);
+    const tsumo = !!ctx.tsumo;
+    const dealer = ctx.seat === 0;
+    const out = [];
+    const bad = (m) => out.push(m);
+    if (f.heavenly && f.earthly) bad('Heavenly hand and earthly hand cannot both be ticked.');
+    if (f.heavenly) {
+      if (!dealer) bad('Heavenly hand is for the dealer: set the seat to East.');
+      if (!tsumo) bad('Heavenly hand is a self-drawn win: tick Self-drawn.');
+    }
+    if (f.earthly) {
+      if (dealer) bad('Earthly hand is for a non-dealer: change the seat from East.');
+      if (ruleset === 'riichi' && !tsumo) bad('Earthly hand (chiihou) is a self-drawn win: tick Self-drawn.');
+      if (ruleset !== 'riichi' && tsumo) bad('Earthly hand is a win on a discard: untick Self-drawn.');
+    }
+    if (f.heavenly || f.earthly) {
+      const others = { riichi: 'Riichi', dblRiichi: 'Double riichi', ippatsu: 'Ippatsu', lastWall: 'Last tile of wall', lastDiscard: 'Last discard', kongDraw: 'After a kong', robKong: 'Robbing a kong', doubleKong: 'Double kong win', early: 'Early win', early2: 'Early win' };
+      Object.keys(others).forEach((k) => { if (f[k]) bad((f.heavenly ? 'Heavenly' : 'Earthly') + ' hand cannot be combined with "' + others[k] + '".'); });
+    }
+    if (f.ippatsu && !f.riichi && !f.dblRiichi) bad('Ippatsu needs riichi or double riichi.');
+    if (f.lastWall && !tsumo) bad('"Last tile of wall" is a self-drawn win: tick Self-drawn.');
+    if (f.lastDiscard && tsumo) bad('"Last discard" is a win on a discard: untick Self-drawn.');
+    if (f.lastWall && f.lastDiscard) bad('"Last tile of wall" and "Last discard" cannot both be ticked.');
+    if (f.kongDraw && !tsumo) bad('"After a kong" is a self-drawn win: tick Self-drawn.');
+    if (f.doubleKong && !tsumo) bad('"Double kong win" is a self-drawn win: tick Self-drawn.');
+    if (f.robKong && tsumo) bad('"Robbing a kong" is a win on a discard: untick Self-drawn.');
+    if (f.robKong && f.lastDiscard) bad('"Robbing a kong" and "Last discard" cannot both be ticked.');
+    if (f.kongDraw && f.robKong) bad('"After a kong" and "Robbing a kong" cannot both be ticked.');
+    if (ruleset === 'riichi' && f.kongDraw && f.lastWall) bad('A win on a kong replacement tile cannot also be a last-tile-of-wall win.');
+    if (f.early && f.early2) bad('Only one early-win tick can be used.');
+    if (hand) {
+      const melds = hand.melds || [];
+      const kongs = melds.filter((m) => m.k === 'kong').length + (hand.closed ? Object.values(hand.closed.reduce((c, t) => { c[t] = (c[t] || 0) + 1; return c; }, {})).filter((n) => n === 4).length : 0);
+      if ((f.riichi || f.dblRiichi) && melds.some((m) => m.open)) bad('Riichi needs a closed hand: untick riichi or the called set.');
+      if (f.kongDraw && kongs < 1) bad('"After a kong" needs a kong in the hand.');
+      if (f.doubleKong && kongs < 2) bad('"Double kong win" needs at least two kongs in the hand.');
+    }
+    return out;
+  }
+
   function analyze(ruleset, hand, ctx, opt = {}) {
     const R = RULESETS[ruleset];
     const err = H.check(hand, R.sets);
     if (err) return { ok: false, error: err };
+    ctx = Object.assign({}, ctx, { flags: activeFlags(ruleset, ctx.flags) });
+    const cf = conflicts(ruleset, hand, ctx);
+    if (cf.length) return { ok: false, error: cf.join(' ') };
     const interps = H.interpretations(hand, { setsTotal: R.sets, tsumo: !!ctx.tsumo });
     if (!interps.length) return { ok: false, error: 'This is not a complete winning hand.' };
     const waitCount = ruleset === 'cc' ? H.waitingTiles(hand, { setsTotal: R.sets, tsumo: false }).length : 0;
@@ -807,7 +867,7 @@
     return { ok: true, patterns: best.patterns, score: best.score, detail: best, interp: best.I };
   }
 
-  const api = { analyze, riichiEval, hkEval, cnEval, ccEval, twEval, mcrEval, info };
+  const api = { analyze, conflicts, FLAG_SETS, riichiEval, hkEval, cnEval, ccEval, twEval, mcrEval, info };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MahjongRules = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

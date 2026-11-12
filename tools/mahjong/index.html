@@ -282,6 +282,8 @@ function calc(){
   var K=closed.length-baseLen();
   if(K<0||K>4||!closed.length){
     res.textContent='Pick '+baseLen()+' tiles (+1 per kong). '+closed.length+' so far.';
+    var cf0=R.conflicts(rs,null,getCtx().ctx);
+    if(cf0.length)res.appendChild(el('div',cf0.join(' '),'err'));
     pats.innerHTML='';$('sets').textContent='Complete a hand to see its sets.';return;
   }
   var c=getCtx();
