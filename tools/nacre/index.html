@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nacre Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Fraunces:ital,opsz,wght@1,9..144,400&display=swap" rel="stylesheet">
+<style>
+/* Layout: full-bleed shader canvas, floating control sheet along the bottom. Light only. */
+:root {
+  color-scheme: light;
+  --paper: #f3f0f3;
+  --ink: #2a2730;
+  --muted: #6c6773;
+  --line: #d9d4dc;
+  --accent: #5b45b8;
+  --panel: rgba(255, 255, 255, 0.9);
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+#gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#gl.drag { cursor: grabbing; }
+.title {
+  position: fixed; top: 12px; left: 16px;
+  font: italic 400 22px/1 var(--font-display);
+  color: #fff; text-shadow: 0 1px 8px rgba(40, 30, 70, 0.45);
+  pointer-events: none;
+}
+.fab {
+  position: fixed; top: 10px; right: 12px;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 8px 14px; font: 500 13px var(--font-body); cursor: pointer;
+}
+.sheet {
+  position: fixed; left: 12px; right: 12px; bottom: 12px;
+  max-width: 720px; margin: 0 auto;
+  max-height: 50%; overflow: auto;
+  background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line); border-radius: 18px;
+  padding: 14px; display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 10px 40px rgba(60, 40, 100, 0.18);
+}
+.sheet[hidden] { display: none; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip, .btn {
+  font: 500 13px var(--font-body); color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-radius: 999px;
+  padding: 7px 13px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.spacer { flex: 1; }
+.seed { color: var(--muted); font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 18px; }
+.ctl label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+.ctl output { font-variant-numeric: tabular-nums; color: var(--ink); }
+input[type=range] { width: 100%; accent-color: var(--accent); margin: 0; height: 24px; }
+.sway { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.overlay {
+  position: fixed; inset: 0; background: rgba(243, 240, 243, 0.96);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px;
+}
+.overlay[hidden] { display: none; }
+a.btn { text-decoration: none; }
+.overlay img { max-width: 100%; max-height: 74%; border-radius: 12px; box-shadow: 0 8px 30px rgba(60, 40, 100, 0.25); }
+.msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="gl" aria-label="Generated mother of pearl texture. Drag to tilt or orbit."></canvas>
+<div class="title">Nacre</div>
+<button class="fab" id="toggle" type="button" aria-expanded="true">Hide controls</button>
+
+<section class="sheet" id="sheet" aria-label="Controls">
+  <div class="row" id="views" role="group" aria-label="View"></div>
+  <div class="row" id="lights" role="group" aria-label="Lighting"></div>
+  <div class="row" id="presets" role="group" aria-label="Presets"></div>
+  <div class="grid" id="sliders"></div>
+  <div class="row">
+    <button class="btn primary" id="reseed" type="button">New seed</button>
+    <span class="seed" id="seedOut"></span>
+    <label class="sway"><input type="checkbox" id="sway"> Sway</label>
+    <span class="spacer"></span>
+    <button class="btn" id="save" type="button">Save image</button>
+  </div>
+</section>
+
+<div class="overlay" id="overlay" hidden>
+  <img id="shot" alt="Rendered nacre texture">
+  <div>Press and hold the image to save it.</div>
+  <div class="row"><a class="btn" id="dl" download="nacre.png" href="#">Download PNG</a><button class="btn primary" id="close" type="button">Close</button></div>
+</div>
+
+<script>
+(function () {
+  var VERT = "#version 300 es\n" +
+    "void main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.-1.,0.,1.);}";
+
+  var FRAG = [
+"#version 300 es",
+"precision highp float;",
+"out vec4 o;",
+"uniform vec2 uRes,uTilt,uCam;",
+"uniform float uMode,uSeed,uScale,uTerr,uWarp,uFilm,uStep,uSharp,uIrid,uRelief,uPlates,uPlateSize,uLines,uOrg,uSparkle,uLight;",
+"uniform vec3 uL,uLc;",
+"#define LK uL",
+"const mat3 M3=mat3(0.,.8,.6,-.8,.36,-.48,-.6,-.48,.64);",
+"float hash21(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}",
+"float hash31(vec3 p){p=fract(p*.1031);p+=dot(p,p.zyx+31.32);return fract((p.x+p.y)*p.z);}",
+"vec3 hash33(vec3 p){p=fract(p*vec3(.1031,.1030,.0973));p+=dot(p,p.yxz+33.33);return fract((p.xxy+p.yxx)*p.zyx);}",
+"float vnoise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);",
+"  return mix(mix(mix(hash31(i),hash31(i+vec3(1.,0.,0.)),f.x),mix(hash31(i+vec3(0.,1.,0.)),hash31(i+vec3(1.,1.,0.)),f.x),f.y),",
+"             mix(mix(hash31(i+vec3(0.,0.,1.)),hash31(i+vec3(1.,0.,1.)),f.x),mix(hash31(i+vec3(0.,1.,1.)),hash31(i+vec3(1.,1.,1.)),f.x),f.y),f.z);}",
+"float fbm(vec3 p){float a=.5,s=0.;for(int i=0;i<4;i++){s+=a*vnoise(p);p=M3*p*2.03+17.1;a*=.5;}return s;}",
+"float field(vec3 p){",
+"  vec3 q=vec3(fbm(p+vec3(1.7,9.2,3.1)),fbm(p+vec3(8.3,2.8,5.5)),fbm(p+vec3(4.1,6.6,7.7)));",
+"  return (fbm(p*.7+uWarp*3.*(q-.47))-.47)*3.1;}",
+"float lobe(float l,float m,float s1,float s2){float t=(l-m)/(l<m?s1:s2);return exp(-.5*t*t);}",
+"vec3 cmf(float l){return vec3(",
+"  1.056*lobe(l,599.8,37.9,31.)+.362*lobe(l,442.,16.,26.7)-.065*lobe(l,501.1,20.4,26.2),",
+"  .821*lobe(l,568.8,46.9,40.5)+.286*lobe(l,530.9,16.3,31.1),",
+"  1.217*lobe(l,437.,11.8,36.)+.681*lobe(l,459.,26.,13.8));}",
+"vec3 toRGB(vec3 v){return vec3(dot(vec3(3.2406,-1.5372,-.4986),v),dot(vec3(-.9689,1.8758,.0415),v),dot(vec3(.0557,-.2040,1.057),v));}",
+"vec3 env(vec3 d){",
+"  if(uLight<.5){",
+"    vec3 c=mix(vec3(.78,.78,.85),vec3(.96,.95,.98),smoothstep(0.,1.,d.y*.5+.5));",
+"    c+=vec3(1.,.97,.95)*2.2*smoothstep(.94,.975,dot(d,LK));",
+"    c+=vec3(.9,.95,1.)*1.1*smoothstep(.9,.95,dot(d,vec3(.795,.348,-.497)));",
+"    return c;}",
+"  if(uLight<1.5){",
+"    vec3 c=mix(vec3(.5,.5,.56),vec3(.78,.78,.84),smoothstep(-.2,1.,d.y));",
+"    vec3 wf=LK;vec3 wr=normalize(cross(vec3(0.,1.,0.),wf));vec3 wu=cross(wf,wr);",
+"    float z=dot(d,wf);vec2 q=vec2(dot(d,wr),dot(d,wu))/max(z,.05);",
+"    float m=step(0.,z)*(1.-smoothstep(.5,.56,abs(q.x)))*(1.-smoothstep(.36,.42,abs(q.y)));",
+"    float bars=1.-.9*((1.-smoothstep(.012,.035,abs(q.x)))+(1.-smoothstep(.012,.035,abs(q.y))));",
+"    c+=vec3(1.,.93,.82)*4.*m*clamp(bars,0.,1.);",
+"    return c;}",
+"  float y=d.y;",
+"  vec3 c=mix(vec3(.45,.45,.43),vec3(.86,.9,.95),smoothstep(-.3,0.,y));",
+"  c=mix(c,vec3(.32,.55,.93),pow(clamp(y,0.,1.),.5));",
+"  float sd=dot(d,LK);",
+"  c+=vec3(1.,.9,.7)*(14.*smoothstep(.9985,.9995,sd)+.6*pow(max(sd,0.),48.));",
+"  return c;}",
+"float stackR(float lam,float d1,float d2,float cs,float N){",
+"  float n1=1.59,n2=1.34;",
+"  float s2=1.-cs*cs;",
+"  float c1=sqrt(1.-s2/(n1*n1)),c2=sqrt(1.-s2/(n2*n2));",
+"  float p1=6.2831853*n1*d1*c1/lam,p2=6.2831853*n2*d2*c2/lam;",
+"  float e1=n1*c1,e2=n2*c2;",
+"  float co1=cos(p1),si1=sin(p1),co2=cos(p2),si2=sin(p2);",
+"  float A=co1*co2-(e2/e1)*si1*si2;",
+"  float B=co1*si2/e2+si1*co2/e1;",
+"  float C=e1*si1*co2+e2*co1*si2;",
+"  float D=co1*co2-(e1/e2)*si1*si2;",
+"  float a=.5*(A+D);float u1,u0;",
+"  if(abs(a)<.9999){float K=acos(a);float sk=sin(K);u1=sin(N*K)/sk;u0=sin((N-1.)*K)/sk;}",
+"  else{float k=max(log(abs(a)+sqrt(a*a-1.)),1e-3);float sk=.5*(exp(k)-exp(-k));",
+"    u1=.5*(exp(N*k)-exp(-N*k))/sk;u0=.5*(exp((N-1.)*k)-exp(-(N-1.)*k))/sk;",
+"    if(a<0.){float sg=cos(3.14159265*(N-1.));u1*=sg;u0*=-sg;}}",
+"  float AN=u1*A-u0,BN=u1*B,CN=u1*C,DN=u1*D-u0;",
+"  float es=n1,e0=cs;",
+"  float nr=e0*AN-DN*es,ni=e0*BN*es-CN;",
+"  float dr=e0*AN+DN*es,di=e0*BN*es+CN;",
+"  return (nr*nr+ni*ni)/(dr*dr+di*di);}",
+"vec3 floorCol(vec3 hp){float r2=dot(hp.xz,hp.xz);return vec3(.84,.83,.87)*(1.-.5*exp(-r2*.6))*(.85+.15*exp(-r2*.05));}",
+"vec3 nacre(vec3 c,vec3 Pw,vec3 Nb,vec3 V,float sh,float ao,float rA,float pw){",
+"  vec3 p=c*uScale+vec3(uSeed*.731,uSeed*.419,uSeed*.233);",
+"  float h=field(p);float e=.02;",
+"  vec3 g=vec3(field(p+vec3(e,0.,0.))-h,field(p+vec3(0.,e,0.))-h,field(p+vec3(0.,0.,e))-h)/e;",
+"  float t=h*uTerr;float lv=floor(t);float fr=fract(t);",
+"  float w=max(clamp(length(g)*uTerr*pw*1.5,0.,.5),.25);",
+"  float st=lv+smoothstep(1.-w,1.,fr);",
+"  float ln=smoothstep(.75,.875,fr)*(1.-smoothstep(.875,1.,fr));",
+"  vec3 pp=(p+.15*(vec3(vnoise(p*3.),vnoise(p*3.+9.),vnoise(p*3.+19.))-.5))*uPlateSize*.25;",
+"  vec3 ip=floor(pp),fp=fract(pp);float f1=8.,f2=8.,id=0.;",
+"  for(int k=-1;k<=1;k++)for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){",
+"    vec3 b=vec3(float(i),float(j),float(k));vec3 r=b+hash33(ip+b)-fp;float d=dot(r,r);",
+"    if(d<f1){f2=f1;f1=d;id=hash31(ip+b+7.3);}else if(d<f2){f2=d;}}",
+"  float edge=sqrt(f2)-sqrt(f1);",
+"  vec3 gt=g-dot(g,Nb)*Nb;",
+"  vec3 rv=vec3(id-.5,fract(id*7.31)-.5,fract(id*3.7)-.5);rv-=dot(rv,Nb)*Nb;",
+"  vec3 N=normalize(Nb-gt*uRelief*.25+rv*uPlates*.18);",
+"  float cosI=clamp(dot(N,V),.05,1.);",
+"  float th=uFilm+uStep*(st+(id-.5)*uPlates*3.);",
+"  vec3 X=vec3(0.),W=vec3(0.);",
+"  for(int i=0;i<16;i++){float l=400.+float(i)*20.;",
+"    float R=stackR(l,th,uOrg,cosI,uSharp);vec3 cm=cmf(l);X+=cm*R;W+=cm;}",
+"  vec3 film=max(toRGB(X),0.)/max(toRGB(W),1e-3);",
+"  film=1.-exp(-film*2.6);",
+"  vec3 pearl=vec3(.80,.76,.80);",
+"  float diff=max(dot(N,LK),0.)*sh;",
+"  float spec=pow(max(dot(N,normalize(LK+V)),0.),60.)*sh;",
+"  float amb=mix(.55,.85,N.y*.5+.5)*ao;",
+"  vec3 col=mix(pearl,film,uIrid)*(amb+.5*diff*uLc)+spec*.25*uLc;",
+"  if(uSparkle>0.){",
+"    vec3 Nf=normalize(N+rv*2.5*uSparkle);",
+"    float gate=step(.55,fract(id*13.7));",
+"    vec3 Rf=reflect(-V,Nf);",
+"    vec3 fl=max(env(Rf)-1.,0.)*.35+uLc*pow(max(dot(Nf,normalize(LK+V)),0.),220.)*3.*sh;",
+"    col+=fl*gate*uSparkle*mix(vec3(1.),film,.6);}",
+"  if(rA>0.){",
+"    vec3 R=reflect(-V,N);vec3 rc;",
+"    if(R.y<-.001){float tt=Pw.y/(-R.y);vec3 hp=Pw+R*tt;rc=mix(floorCol(hp),env(R),smoothstep(8.,22.,length(hp.xz)));}",
+"    else rc=env(R);",
+"    float F=.1+.9*pow(1.-cosI,5.);",
+"    col=col*(1.-F*.5)+rc*F*rA;}",
+"  float aa=pw*uPlateSize*.25*1.5;",
+"  float ed=1.-smoothstep(0.,.05+aa,edge);",
+"  col*=1.-.35*ed*min(1.,uPlates*2.);",
+"  col*=1.-.22*uLines*ln;",
+"  return col;}",
+"float sdObj(vec3 p){",
+"  if(uMode<1.5)return length(p-vec3(0.,1.,0.))-1.;",
+"  if(uMode<2.5){vec3 q=p-vec3(0.,.95,0.);float c=cos(.55),s=sin(.55);q=vec3(q.x,c*q.y-s*q.z,s*q.y+c*q.z);",
+"    return length(vec2(length(q.xz)-.95,q.y))-.42;}",
+"  vec3 q=p-vec3(0.,.72,0.);float c=cos(.6),s=sin(.6);q=vec3(c*q.x+s*q.z,q.y,-s*q.x+c*q.z);",
+"  vec3 d=abs(q)-vec3(.54);",
+"  return length(max(d,0.))+min(max(d.x,max(d.y,d.z)),0.)-.18;}",
+"float map(vec3 p){return min(sdObj(p),p.y);}",
+"vec3 calcN(vec3 p){vec2 k=vec2(1.,-1.);float h=.001;",
+"  return normalize(k.xyy*sdObj(p+k.xyy*h)+k.yyx*sdObj(p+k.yyx*h)+k.yxy*sdObj(p+k.yxy*h)+k.xxx*sdObj(p+k.xxx*h));}",
+"float shadow(vec3 ro,vec3 rd){float res=1.,t=.02;",
+"  for(int i=0;i<28;i++){float h=sdObj(ro+rd*t);res=min(res,9.*h/t);t+=clamp(h,.02,.4);if(res<.002||t>6.)break;}",
+"  return smoothstep(0.,1.,clamp(res,0.,1.));}",
+"float calcAO(vec3 p,vec3 n){float occ=0.,sca=1.;",
+"  for(int i=0;i<5;i++){float hh=.02+.12*float(i);occ+=(hh-map(p+n*hh))*sca;sca*=.85;}",
+"  return clamp(1.-1.6*occ,0.,1.);}",
+"void main(){",
+"  if(uMode<.5){",
+"    vec2 uv=(gl_FragCoord.xy-.5*uRes)/uRes.y;",
+"    vec3 col=nacre(vec3(uv,0.),vec3(uv,0.),normalize(vec3(uTilt,1.)),vec3(0.,0.,1.),1.,1.,0.,uScale/uRes.y);",
+"    col=pow(clamp(col,0.,1.),vec3(1./2.2));",
+"    o=vec4(col+(hash21(gl_FragCoord.xy)-.5)/255.,1.);return;}",
+"  float minr=min(uRes.x,uRes.y);",
+"  vec2 uv=(gl_FragCoord.xy-.5*uRes)/minr;",
+"  vec3 ta=vec3(0.,.9,0.);",
+"  vec3 ro=ta+5.6*vec3(cos(uCam.y)*sin(uCam.x),sin(uCam.y),cos(uCam.y)*cos(uCam.x));",
+"  vec3 f=normalize(ta-ro);vec3 r=normalize(cross(f,vec3(0.,1.,0.)));vec3 u=cross(r,f);",
+"  vec3 rd=normalize(uv.x*r+uv.y*u+1.7*f);",
+"  float t=0.;bool hit=false;",
+"  for(int i=0;i<100;i++){vec3 q=ro+rd*t;float d=map(q);if(d<.0012*t+.0005){hit=true;break;}t+=d;if(t>40.)break;}",
+"  vec3 col;",
+"  if(!hit){col=env(rd)*.92;}",
+"  else{",
+"    vec3 P=ro+rd*t;",
+"    if(sdObj(P)<P.y){",
+"      vec3 N=calcN(P);",
+"      float sh=shadow(P+N*.02,LK);float ao=calcAO(P,N);",
+"      col=nacre(P*.5,P,N,-rd,sh,ao,1.,t/(1.7*minr)*.5*uScale);",
+"    }else{",
+"      vec3 N=vec3(0.,1.,0.);",
+"      float sh=shadow(P+N*.02,LK);float ao=calcAO(P,N);",
+"      col=vec3(.84,.83,.87)*(ao*.62+.45*sh*LK.y*uLc);",
+"      vec3 R=reflect(rd,N);float t2=.02;bool h2=false;",
+"      for(int i=0;i<56;i++){float d=sdObj(P+R*t2);if(d<.001*t2+.0005){h2=true;break;}t2+=d;if(t2>8.)break;}",
+"      vec3 rc;",
+"      if(h2){vec3 Q=P+R*t2;vec3 N2=calcN(Q);float sh2=shadow(Q+N2*.02,LK);",
+"        rc=nacre(Q*.5,Q,N2,-R,sh2,1.,0.,(t+t2)/(1.7*minr)*.5*uScale);}",
+"      else rc=env(R);",
+"      float F=.1+.9*pow(1.-max(dot(-rd,N),0.),5.);",
+"      col=mix(col,rc,F);",
+"      col=mix(col,env(rd)*.92,smoothstep(7.,20.,length(P.xz)));",
+"    }",
+"  }",
+"  col=1.-exp(-col*1.8);",
+"  col=pow(clamp(col,0.,1.),vec3(1./2.2));",
+"  o=vec4(col+(hash21(gl_FragCoord.xy)-.5)/255.,1.);",
+"}"
+  ].join("\n");
+
+  var SLIDERS = [
+    ["scale", "Scale", 1, 8, 0.1, "%.1f"],
+    ["terr", "Terraces", 4, 40, 1, "%d"],
+    ["warp", "Warp", 0, 2, 0.05, "%.2f"],
+    ["film", "Platelet thickness (nm)", 250, 700, 5, "%d"],
+    ["step", "Layer step (nm)", 4, 40, 1, "%d"],
+    ["sharp", "Stack layers", 3, 24, 1, "%d"],
+    ["irid", "Iridescence", 0, 1, 0.01, "%.2f"],
+    ["relief", "Relief", 0, 2, 0.05, "%.2f"],
+    ["plates", "Platelets", 0, 1, 0.01, "%.2f"],
+    ["plateSize", "Platelet density", 6, 50, 1, "%d"],
+    ["lines", "Growth lines", 0, 1, 0.01, "%.2f"],
+    ["org", "Organic gap (nm)", 10, 80, 1, "%d"],
+    ["sparkle", "Sparkle", 0, 1, 0.01, "%.2f"]
+  ];
+
+  var PRESETS = {
+    "Abalone": { scale: 3, terr: 22, warp: 1.2, film: 380, step: 20, sharp: 8, irid: 1, relief: 0.9, plates: 0.35, plateSize: 18, lines: 0.5, org: 30, sparkle: 0.5 },
+    "Pearl":   { scale: 2.2, terr: 9, warp: 0.7, film: 520, step: 9, sharp: 5, irid: 0.6, relief: 0.6, plates: 0.2, plateSize: 12, lines: 0.25, org: 45, sparkle: 0.3 },
+    "Oyster":  { scale: 3.6, terr: 14, warp: 0.9, film: 450, step: 12, sharp: 6, irid: 0.75, relief: 0.8, plates: 0.85, plateSize: 26, lines: 0.35, org: 35, sparkle: 0.6 },
+    "Mussel":  { scale: 2.6, terr: 30, warp: 1.6, film: 320, step: 26, sharp: 12, irid: 1, relief: 1.1, plates: 0.2, plateSize: 14, lines: 0.6, org: 25, sparkle: 0.4 }
+  };
+
+  var canvas = document.getElementById("gl");
+  var gl = canvas.getContext("webgl2", { antialias: false, alpha: false });
+  if (!gl) {
+    document.body.insertAdjacentHTML("beforeend", '<div class="msg">This browser does not support WebGL 2, which the generator needs.</div>');
+    return;
+  }
+
+  function compile(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  var prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  var U = {};
+  ["uRes", "uTilt", "uCam", "uMode", "uSeed", "uScale", "uTerr", "uWarp", "uFilm", "uStep", "uSharp", "uIrid", "uRelief", "uPlates", "uPlateSize", "uLines", "uOrg", "uSparkle", "uLight", "uL", "uLc"].forEach(function (n) {
+    U[n] = gl.getUniformLocation(prog, n);
+  });
+  var KEY2U = { scale: "uScale", terr: "uTerr", warp: "uWarp", film: "uFilm", step: "uStep", sharp: "uSharp", irid: "uIrid", relief: "uRelief", plates: "uPlates", plateSize: "uPlateSize", lines: "uLines", org: "uOrg", sparkle: "uSparkle" };
+
+  var params = Object.assign({}, PRESETS.Abalone);
+  var seed = 214;
+  var tilt = { x: 0.15, y: 0.1 };
+  var swayOn = !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  var swayK = 1, dragging = false, dirty = true;
+  var mode = 1;
+  var cam = { yaw: 0.55, pitch: 0.3 };
+  var LIGHTS = [
+    { name: "Studio", L: [-0.447, 0.716, 0.537], c: [1, 1, 1] },
+    { name: "Window", L: [-0.6, 0.3, 0.74], c: [1, 0.93, 0.82] },
+    { name: "Outdoor", L: [0.507, 0.76, 0.406], c: [1.05, 0.98, 0.88] }
+  ];
+  var light = 0;
+  var lightsEl = document.getElementById("lights");
+  function setLight(i) {
+    light = i;
+    Array.prototype.forEach.call(lightsEl.children, function (b, k) { b.setAttribute("aria-pressed", k === i ? "true" : "false"); });
+    dirty = true;
+  }
+  LIGHTS.forEach(function (l, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = l.name;
+    b.addEventListener("click", function () { setLight(i); });
+    lightsEl.appendChild(b);
+  });
+  setLight(0);
+  var VIEWS = ["Flat", "Sphere", "Torus", "Cube"];
+  var viewsEl = document.getElementById("views");
+  function setView(i) {
+    mode = i;
+    Array.prototype.forEach.call(viewsEl.children, function (b, k) { b.setAttribute("aria-pressed", k === i ? "true" : "false"); });
+    resize();
+  }
+  VIEWS.forEach(function (name, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = name;
+    b.addEventListener("click", function () { setView(i); });
+    viewsEl.appendChild(b);
+  });
+
+  function fmt(f, v) {
+    if (f === "%d") return String(Math.round(v));
+    var d = f === "%.1f" ? 1 : 2;
+    return v.toFixed(d);
+  }
+
+  // controls
+  var slidersEl = document.getElementById("sliders");
+  var inputs = {}, outs = {};
+  SLIDERS.forEach(function (s) {
+    var key = s[0];
+    var wrap = document.createElement("div");
+    wrap.className = "ctl";
+    wrap.innerHTML = '<label for="s-' + key + '"><span>' + s[1] + '</span><output id="o-' + key + '"></output></label>' +
+      '<input type="range" id="s-' + key + '" min="' + s[2] + '" max="' + s[3] + '" step="' + s[4] + '">';
+    slidersEl.appendChild(wrap);
+    var inp = wrap.querySelector("input"), out = wrap.querySelector("output");
+    inputs[key] = inp; outs[key] = out;
+    inp.addEventListener("input", function () {
+      params[key] = parseFloat(inp.value);
+      out.textContent = fmt(s[5], params[key]);
+      setActivePreset(null);
+      dirty = true;
+    });
+  });
+  function syncSliders() {
+    SLIDERS.forEach(function (s) {
+      inputs[s[0]].value = params[s[0]];
+      outs[s[0]].textContent = fmt(s[5], params[s[0]]);
+    });
+  }
+
+  var presetsEl = document.getElementById("presets");
+  function setActivePreset(name) {
+    Array.prototype.forEach.call(presetsEl.children, function (b) {
+      b.setAttribute("aria-pressed", b.textContent === name ? "true" : "false");
+    });
+  }
+  Object.keys(PRESETS).forEach(function (name) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = name;
+    b.addEventListener("click", function () {
+      params = Object.assign({}, PRESETS[name]);
+      syncSliders(); setActivePreset(name); dirty = true;
+    });
+    presetsEl.appendChild(b);
+  });
+  syncSliders(); setActivePreset("Abalone");
+
+  var seedOut = document.getElementById("seedOut");
+  function showSeed() { seedOut.textContent = "Seed " + seed; }
+  showSeed();
+  document.getElementById("reseed").addEventListener("click", function () {
+    seed = 1 + Math.floor(Math.random() * 999);
+    showSeed(); dirty = true;
+  });
+
+  var swayBox = document.getElementById("sway");
+  swayBox.checked = swayOn;
+  swayBox.addEventListener("change", function () { swayOn = swayBox.checked; dirty = true; });
+
+  var sheet = document.getElementById("sheet"), toggle = document.getElementById("toggle");
+  toggle.addEventListener("click", function () {
+    sheet.hidden = !sheet.hidden;
+    toggle.textContent = sheet.hidden ? "Show controls" : "Hide controls";
+    toggle.setAttribute("aria-expanded", String(!sheet.hidden));
+  });
+
+  // canvas size
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    var h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    var px = w * h, cap = mode === 0 ? 2400000 : 1000000;
+    if (px > cap) { var k = Math.sqrt(cap / px); w = Math.round(w * k); h = Math.round(h * k); }
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.viewport(0, 0, w, h);
+    dirty = true;
+  }
+  window.addEventListener("resize", resize);
+  setView(1);
+
+  // drag to tilt
+  var lx = 0, ly = 0;
+  canvas.addEventListener("pointerdown", function (e) {
+    dragging = true; lx = e.clientX; ly = e.clientY;
+    canvas.setPointerCapture(e.pointerId); canvas.classList.add("drag");
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    var s = 2.2 / Math.min(canvas.clientWidth, canvas.clientHeight);
+    if (mode === 0) {
+      tilt.x = Math.max(-1, Math.min(1, tilt.x + (e.clientX - lx) * s));
+      tilt.y = Math.max(-1, Math.min(1, tilt.y - (e.clientY - ly) * s));
+    } else {
+      cam.yaw -= (e.clientX - lx) * 0.008;
+      cam.pitch = Math.max(0.05, Math.min(1.3, cam.pitch + (e.clientY - ly) * 0.006));
+    }
+    lx = e.clientX; ly = e.clientY; dirty = true;
+  });
+  function endDrag() { dragging = false; canvas.classList.remove("drag"); }
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  function render(time) {
+    var sx = swayOn ? Math.sin(time * 0.0004) * 0.35 * swayK : 0;
+    var sy = swayOn ? Math.cos(time * 0.0003) * 0.3 * swayK : 0;
+    gl.uniform2f(U.uRes, canvas.width, canvas.height);
+    gl.uniform2f(U.uTilt, tilt.x + sx, tilt.y + sy);
+    gl.uniform2f(U.uCam, cam.yaw + sx * 0.7, cam.pitch);
+    gl.uniform1f(U.uMode, mode);
+    var Lg = LIGHTS[light], ll = Math.hypot(Lg.L[0], Lg.L[1], Lg.L[2]);
+    gl.uniform3f(U.uL, Lg.L[0] / ll, Lg.L[1] / ll, Lg.L[2] / ll);
+    gl.uniform3f(U.uLc, Lg.c[0], Lg.c[1], Lg.c[2]);
+    gl.uniform1f(U.uLight, light);
+    gl.uniform1f(U.uSeed, seed);
+    for (var k in KEY2U) gl.uniform1f(U[KEY2U[k]], params[k]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  function frame(time) {
+    var target = dragging ? 0 : 1;
+    swayK += (target - swayK) * 0.05;
+    if (dirty || swayOn) {
+      render(time);
+      dirty = false;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // save: show the image full screen so it can be pressed and held
+  var overlay = document.getElementById("overlay"), shot = document.getElementById("shot");
+  document.getElementById("save").addEventListener("click", function () {
+    render(performance.now());
+    shot.src = canvas.toDataURL("image/png");
+    document.getElementById("dl").href = shot.src;
+    overlay.hidden = false;
+  });
+  document.getElementById("close").addEventListener("click", function () { overlay.hidden = true; });
+})();
+</script>
+</body>
+</html>
